@@ -32,4 +32,6 @@ urlpatterns = [
     path('api/history-stats/', views.history_stats_api, name='history_stats_api'),
     path('stock-in/', views.stock_in_view, name='stock_in'),
     path('api/record-debt-payment/', views.record_debt_payment, name='record_debt_payment'),
+    path('products/<int:product_id>/edit/', views.edit_product, name='edit_product'),
+    path('sales/<int:sale_id>/print/', views.print_receipt_view, name='print_receipt'),
 ]

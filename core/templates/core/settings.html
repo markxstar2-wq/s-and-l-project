@@ -25,17 +25,12 @@
             🔔 Stock Alerts & Notifications
         </button>
     </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link fw-bold" id="general-tab" data-bs-toggle="tab" data-bs-target="#general" type="button" role="tab" aria-controls="general" aria-selected="false">
-            ⚙️ General & Receipt Info
-        </button>
-    </li>
 </ul>
 
 <div class="tab-content" id="settingsTabContent">
 
     <!-- ========================================== -->
-    <!-- TAB 1: PRODUCT MANAGEMENT                 -->
+    <!-- TAB 1: PRODUCT MANAGEMENT                  -->
     <!-- ========================================== -->
     <div class="tab-pane fade show active" id="products" role="tabpanel" aria-labelledby="products-tab">
         <div class="row g-4">
@@ -112,115 +107,112 @@
     </div>
 
     <!-- ========================================== -->
-    <!-- TAB 2: USER CREATION & ROLES              -->
+    <!-- TAB 2: USER CREATION & ROLES               -->
     <!-- ========================================== -->
-    <!-- ========================================== -->
-<!-- TAB 2: USER CREATION & ROLES              -->
-<!-- ========================================== -->
-<div class="tab-pane fade" id="users" role="tabpanel" aria-labelledby="users-tab">
-    <div class="row g-4">
-        
-        {% if request.user.is_superuser or request.user.role == 'admin' %}
-        <!-- Add User Form (Admin Only) -->
-        <div class="col-lg-4">
-            <div class="card border-0 shadow-sm p-4 bg-white">
-                <h5 class="mb-3 text-primary">➕ Register New System User</h5>
-                <form method="post" action="{% url 'add_user' %}">
-                    {% csrf_token %}
-                    <div class="mb-3">
-                        <label for="username" class="form-label fw-bold">Username</label>
-                        <input type="text" class="form-control" id="username" name="username" placeholder="e.g. john_doe" required>
-                    </div>
+    <div class="tab-pane fade" id="users" role="tabpanel" aria-labelledby="users-tab">
+        <div class="row g-4">
+            
+            {% if request.user.is_superuser or request.user.role == 'admin' %}
+            <!-- Add User Form (Admin Only) -->
+            <div class="col-lg-4">
+                <div class="card border-0 shadow-sm p-4 bg-white">
+                    <h5 class="mb-3 text-primary">➕ Register New System User</h5>
+                    <form method="post" action="{% url 'add_user' %}">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="username" class="form-label fw-bold">Username</label>
+                            <input type="text" class="form-control" id="username" name="username" placeholder="e.g. john_doe" required>
+                        </div>
 
-                    <div class="mb-3">
-                        <label for="email" class="form-label fw-bold">Email Address</label>
-                        <input type="email" class="form-control" id="email" name="email" placeholder="e.g. john@example.com">
-                    </div>
+                        <div class="mb-3">
+                            <label for="email" class="form-label fw-bold">Email Address</label>
+                            <input type="email" class="form-control" id="email" name="email" placeholder="e.g. john@example.com">
+                        </div>
 
-                    <div class="mb-3">
-                        <label for="password" class="form-label fw-bold">Initial Password</label>
-                        <input type="password" class="form-control" id="password" name="password" placeholder="••••••••" required>
-                    </div>
+                        <div class="mb-3">
+                            <label for="password" class="form-label fw-bold">Initial Password</label>
+                            <input type="password" class="form-control" id="password" name="password" placeholder="••••••••" required>
+                        </div>
 
-                    <div class="mb-3">
-                        <label for="role" class="form-label fw-bold">Assign System Role</label>
-                        <select id="role" name="role" class="form-select" required>
-                            <option value="" disabled selected>-- Select Role --</option>
-                            <option value="shop">Shop Cashier (POS & Sales Access)</option>
-                            <option value="main_store">Main Store Manager (Warehouse Control)</option>
-                            <option value="admin">System Administrator (Full Control)</option>
-                        </select>
-                    </div>
+                        <div class="mb-3">
+                            <label for="role" class="form-label fw-bold">Assign System Role</label>
+                            <select id="role" name="role" class="form-select" required>
+                                <option value="" disabled selected>-- Select Role --</option>
+                                <option value="shop">Shop Cashier (POS & Sales Access)</option>
+                                <option value="main_store">Main Store Manager (Warehouse Control)</option>
+                                <option value="admin">System Administrator (Full Control)</option>
+                            </select>
+                        </div>
 
-                    <button type="submit" class="btn btn-primary w-100 fw-bold">👤 Create User Account</button>
-                </form>
-            </div>
-        </div>
-        {% endif %}
-
-        <!-- Existing Users List -->
-        <div class="{% if request.user.is_superuser or request.user.role == 'admin' %}col-lg-8{% else %}col-lg-12{% endif %}">
-            <div class="card border-0 shadow-sm p-4 bg-white">
-                <h5 class="mb-3">Active System Accounts</h5>
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Username</th>
-                                <th>Email</th>
-                                <th>Current Role</th>
-                                <th>Assigned Location</th>
-                                {% if request.user.is_superuser or request.user.role == 'admin' %}
-                                <th class="text-end">Action</th>
-                                {% endif %}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for user_item in site_users %}
-                            <tr>
-                                <td><strong>{{ user_item.username }}</strong></td>
-                                <td>{{ user_item.email|default:"N/A" }}</td>
-                                <td>
-                                    {% if user_item.is_superuser or user_item.role == 'admin' %}
-                                        <span class="badge bg-dark">Super Admin</span>
-                                    {% elif user_item.role == 'main_store' %}
-                                        <span class="badge bg-primary">Main Store Manager</span>
-                                    {% elif user_item.role == 'shop' %}
-                                        <span class="badge bg-success">Shop Cashier</span>
-                                    {% else %}
-                                        <span class="badge bg-secondary">Unassigned</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if user_item.role == 'main_store' %}
-                                        🏭 Main Warehouse
-                                    {% elif user_item.role == 'shop' %}
-                                        🛒 POS / Shop Floor
-                                    {% else %}
-                                        🏢 All / Admin Access
-                                    {% endif %}
-                                </td>
-                                {% if request.user.is_superuser or request.user.role == 'admin' %}
-                                <td class="text-end">
-                                    <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#userRoleModal{{ user_item.id }}">
-                                        ⚙️ Edit Role
-                                    </button>
-                                </td>
-                                {% endif %}
-                            </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="5" class="text-center text-muted py-3">No active users found.</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                        <button type="submit" class="btn btn-primary w-100 fw-bold">👤 Create User Account</button>
+                    </form>
                 </div>
             </div>
-        </div>
+            {% endif %}
 
+            <!-- Existing Users List -->
+            <div class="{% if request.user.is_superuser or request.user.role == 'admin' %}col-lg-8{% else %}col-lg-12{% endif %}">
+                <div class="card border-0 shadow-sm p-4 bg-white">
+                    <h5 class="mb-3">Active System Accounts</h5>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Username</th>
+                                    <th>Email</th>
+                                    <th>Current Role</th>
+                                    <th>Assigned Location</th>
+                                    {% if request.user.is_superuser or request.user.role == 'admin' %}
+                                    <th class="text-end">Action</th>
+                                    {% endif %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user_item in site_users %}
+                                <tr>
+                                    <td><strong>{{ user_item.username }}</strong></td>
+                                    <td>{{ user_item.email|default:"N/A" }}</td>
+                                    <td>
+                                        {% if user_item.is_superuser or user_item.role == 'admin' %}
+                                            <span class="badge bg-dark">Super Admin</span>
+                                        {% elif user_item.role == 'main_store' %}
+                                            <span class="badge bg-primary">Main Store Manager</span>
+                                        {% elif user_item.role == 'shop' %}
+                                            <span class="badge bg-success">Shop Cashier</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Unassigned</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if user_item.role == 'main_store' %}
+                                            🏭 Main Warehouse
+                                        {% elif user_item.role == 'shop' %}
+                                            🛒 POS / Shop Floor
+                                        {% else %}
+                                            🏢 All / Admin Access
+                                        {% endif %}
+                                    </td>
+                                    {% if request.user.is_superuser or request.user.role == 'admin' %}
+                                    <td class="text-end">
+                                        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#userRoleModal{{ user_item.id }}">
+                                            ⚙️ Edit Role
+                                        </button>
+                                    </td>
+                                    {% endif %}
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted py-3">No active users found.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div>
     </div>
-</div>
 
     <!-- ========================================== -->
     <!-- TAB 3: NOTIFICATIONS & ALERT RULES        -->
@@ -261,37 +253,50 @@
         </div>
     </div>
 
-    <!-- ========================================== -->
-    <!-- TAB 4: GENERAL APP & RECEIPT CONFIG      -->
-    <!-- ========================================== -->
-    <div class="tab-pane fade" id="general" role="tabpanel" aria-labelledby="general-tab">
-        <div class="card border-0 shadow-sm p-4 bg-white">
-            <h5 class="mb-3">Business & Receipt Information</h5>
-            <form method="post" action="{% url 'save_general_settings' %}">
+</div>
+
+<!-- ========================================== -->
+<!-- MODALS FOR EDITING PRODUCTS                -->
+<!-- ========================================== -->
+{% for product in products %}
+<div class="modal fade" id="editProductModal{{ product.id }}" tabindex="-1" aria-labelledby="editProductModalLabel{{ product.id }}" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editProductModalLabel{{ product.id }}">Edit Product: {{ product.product_name }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{% url 'edit_product' product.id %}">
                 {% csrf_token %}
-                <div class="row g-3 mb-3">
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold">Business / Shop Name</label>
-                        <input type="text" class="form-control" name="shop_name" value="{{ settings.shop_name|default:'My Retail Store' }}" required>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="edit_product_code_{{ product.id }}" class="form-label fw-bold">Product Code / SKU</label>
+                        <input type="text" class="form-control" id="edit_product_code_{{ product.id }}" name="product_code" value="{{ product.product_code }}" required>
                     </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold">Phone Number</label>
-                        <input type="text" class="form-control" name="shop_phone" value="{{ settings.shop_phone|default:'+256 ...' }}">
+
+                    <div class="mb-3">
+                        <label for="edit_product_name_{{ product.id }}" class="form-label fw-bold">Product Name</label>
+                        <input type="text" class="form-control" id="edit_product_name_{{ product.id }}" name="product_name" value="{{ product.product_name }}" required>
                     </div>
-                    <div class="col-md-12">
-                        <label class="form-label fw-bold">Business Physical Address</label>
-                        <input type="text" class="form-control" name="shop_address" value="{{ settings.shop_address|default:'Plot 12, Main Street' }}">
+
+                    <div class="mb-3">
+                        <label for="edit_category_{{ product.id }}" class="form-label fw-bold">Category</label>
+                        <input type="text" class="form-control" id="edit_category_{{ product.id }}" name="category" value="{{ product.category|default:'' }}">
                     </div>
-                    <div class="col-md-12">
-                        <label class="form-label fw-bold">Receipt Footer Note</label>
-                        <input type="text" class="form-control" name="receipt_footer" value="{{ settings.receipt_footer|default:'Thank you for shopping with us! Goods once sold are not returnable.' }}">
+
+                    <div class="mb-3">
+                        <label for="edit_min_stock_level_{{ product.id }}" class="form-label fw-bold">Low Stock Warning Level</label>
+                        <input type="number" class="form-control" id="edit_min_stock_level_{{ product.id }}" name="min_stock_level" value="{{ product.min_stock_level|default:10 }}" min="0">
                     </div>
                 </div>
-
-                <button type="submit" class="btn btn-primary fw-bold">💾 Update Business Profile</button>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary fw-bold">Save Changes</button>
+                </div>
             </form>
         </div>
     </div>
-
 </div>
+{% endfor %}
+
 {% endblock %}

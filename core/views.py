@@ -753,3 +753,75 @@ def record_debt_payment(request):
         return JsonResponse({'success': False, 'error': 'Sale record not found.'}, status=404)
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+def edit_product(request, product_id):
+    product = get_object_or_404(Product, id=product_id)
+
+    if request.method == 'POST':
+        product_code = request.POST.get('product_code', '').strip()
+        product_name = request.POST.get('product_name', '').strip()
+        category = request.POST.get('category', '').strip()
+        min_stock_level = request.POST.get('min_stock_level')
+
+        # 1. Basic validation
+        if not product_code or not product_name:
+            messages.error(request, "Product code and name cannot be empty.")
+            return redirect(request.META.get('HTTP_REFERER', 'settings'))
+
+        # 2. Check if product_code is already used by ANOTHER product
+        existing_product = Product.objects.filter(product_code=product_code).exclude(id=product.id).first()
+        if existing_product:
+            messages.error(
+                request, 
+                f"The product code '{product_code}' is already assigned to '{existing_product.product_name}'."
+            )
+            return redirect(request.META.get('HTTP_REFERER', 'settings'))
+
+        # 3. Update fields safely
+        product.product_code = product_code
+        product.product_name = product_name
+        product.category = category if category else None
+        
+        try:
+            product.min_stock_level = int(min_stock_level) if min_stock_level else 10
+        except ValueError:
+            product.min_stock_level = 10
+
+        # 4. Save and handle unexpected database integrity errors as a backup
+        try:
+            product.save()
+            messages.success(request, f"Product '{product.product_name}' updated successfully!")
+        except IntegrityError:
+            messages.error(request, f"Product code '{product_code}' is already in use.")
+            
+        return redirect(request.META.get('HTTP_REFERER', 'settings'))
+
+    return redirect('settings')
+
+def print_receipt_view(request, sale_id):
+    # Fetch the sale or return 404
+    sale = get_object_or_404(Sale, id=sale_id)
+    
+    # Optional: fetch business info if stored in a model/settings, 
+    # or hardcode fallback details below in the context or template
+    context = {
+        'sale': sale,
+        'printed_at': timezone.now(),
+        # Add business info here if not stored in database:
+        'business_name': 'My Store Name',
+        'business_phone': '+256 700 000000',
+        'business_location': 'Kampala, Uganda',
+        'receipt_footer': 'Thank you for shopping with us! Items non-refundable.',
+    }
+    
+    return render(request, 'core/print_receipt.html', context)
+
+def view_receipt(request, sale_id):
+    sale = get_object_or_404(Sale, id=sale_id)
+    # Fetch the business settings row configured in Tab 4
+    settings = SystemSettings.objects.first() 
+    
+    return render(request, 'core/receipt.html', {
+        'sale': sale,
+        'settings': settings,
+    })

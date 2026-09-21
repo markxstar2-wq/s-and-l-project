@@ -1,0 +1,24 @@
+<a href="{% url 'dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">📊 Dashboard</a>
+
+{% if user.is_superuser or user.role == 'main_store' or user.role == 'MAIN_STORE' or user.role == 'admin' or user.role == 'ADMIN' or user.is_warehouse_staff %}
+    <a href="{% url 'main_store' %}" class="{% if request.resolver_match.url_name == 'main_store' %}active{% endif %}">📦 Main Store</a>
+{% endif %}
+
+{% if user.is_superuser or user.role == 'shop' or user.role == 'SHOP' or user.role == 'admin' or user.role == 'ADMIN' or user.is_cashier %}
+    <a href="{% url 'shop_pos' %}" class="{% if request.resolver_match.url_name == 'shop_pos' %}active{% endif %}">🛒 Shop POS</a>
+{% endif %}
+
+<a href="{% url 'history' %}" class="{% if request.resolver_match.url_name == 'history' %}active{% endif %}">🧾 Sales History</a>
+
+{% if user.is_superuser or user.role == 'admin' or user.role == 'ADMIN' %}
+    <a href="{% url 'settings' %}" class="{% if request.resolver_match.url_name == 'settings' %}active{% endif %}">⚙️ Settings</a>
+{% endif %}
+
+<a href="{% url 'reports' %}" class="{% if request.resolver_match.url_name == 'reports' %}active{% endif %}">📊 Reports</a>
+
+<hr class="text-secondary mt-4">
+<div class="px-2 text-muted small mb-2">User Role: <strong>{{ user.get_role_display|default:user.role }}</strong></div>
+<form action="{% url 'logout' %}" method="post" class="px-2">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-sm btn-outline-danger w-100">Logout</button>
+</form>

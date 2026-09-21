@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Sales & Inventory System{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f4f6f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .sidebar { min-height: 100vh; background-color: #1e293b; color: #fff; }
+        .sidebar a, .offcanvas-body a { color: #94a3b8; text-decoration: none; padding: 12px 20px; display: block; border-radius: 6px; margin-bottom: 4px; }
+        .sidebar a:hover, .sidebar a.active, .offcanvas-body a:hover, .offcanvas-body a.active { background-color: #334155; color: #fff; }
+        .card-kpi { border: none; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+    </style>
+</head>
+<body>
+
+    <!-- Mobile Top Navigation Bar (Visible only on screens smaller than md) -->
+    <nav class="navbar navbar-dark bg-dark d-md-none px-3">
+        <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileSidebar" aria-controls="mobileSidebar">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <span class="navbar-brand mb-0 h1 fs-6">S&I System</span>
+
+        <!-- Mobile Notification Bell -->
+        <div class="dropdown">
+            <button class="btn btn-outline-light btn-sm position-relative" type="button" id="mobileNotifDropdown" data-bs-toggle="dropdown">
+                🔔
+                <span class="notif-badge position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none">0</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow notif-list" style="width: 280px; max-height: 350px; overflow-y: auto;">
+                <li class="dropdown-header">Notifications</li>
+                <li><hr class="dropdown-divider"></li>
+                <li class="empty-notif-msg dropdown-item text-muted text-center small">No new notifications</li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Mobile Offcanvas Drawer -->
+    <div class="offcanvas offcanvas-start bg-dark text-white d-md-none" tabindex="-1" id="mobileSidebar" aria-labelledby="mobileSidebarLabel">
+        <div class="offcanvas-header border-bottom border-secondary">
+            <h5 class="offcanvas-title" id="mobileSidebarLabel">S&I System</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body p-3">
+            {% include 'core/includes/sidebar_links.html' %}
+        </div>
+    </div>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Desktop Sidebar Navigation (Visible on md and larger screens) -->
+            <nav class="col-md-2 d-none d-md-block sidebar p-3">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h4 class="text-white mb-0 ps-2">S&I System</h4>
+                    
+                    <!-- Desktop Notification Bell -->
+                    <div class="dropdown">
+                        <button class="btn btn-outline-secondary btn-sm position-relative text-white border-0" type="button" id="desktopNotifDropdown" data-bs-toggle="dropdown">
+                            🔔
+                            <span class="notif-badge position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none">0</span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow notif-list" style="width: 300px; max-height: 400px; overflow-y: auto;">
+                            <li class="dropdown-header">Notifications</li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li class="empty-notif-msg dropdown-item text-muted text-center small">No new notifications</li>
+                        </ul>
+                    </div>
+                </div>
+
+                {% include 'core/includes/sidebar_links.html' %}
+            </nav>
+
+            <!-- Main Content Area -->
+            <main class="col-md-10 ms-sm-auto px-md-4 py-4">
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+                
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+
+    <!-- Floating Toast Container -->
+    <div id="toast-container" class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1100;"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Unified Real-time WebSocket Client -->
+    <script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const wsProtocol = window.location.protocol === "https:" ? "wss://" : "ws://";
+        const wsUrl = wsProtocol + window.location.host + "/ws/live-updates/";
+        let unreadCount = 0;
+        let socket = null;
+
+        function connectWebSocket() {
+            socket = new WebSocket(wsUrl);
+
+            socket.onopen = function() {
+                console.log('⚡ Connected to Live System WebSockets');
+            };
+
+            socket.onmessage = function (event) {
+                const data = JSON.parse(event.data);
+
+                // 1. Toast & Bell Notifications
+                if (data.type === "notification") {
+                    const notif = data.data || data;
+                    showToastNotification(notif.title || "Notification", notif.message, notif.level);
+                    addNotificationToBell(notif.title || "Notification", notif.message, notif.level);
+                }
+
+                // 2. Dynamic Page Handlers
+                if (data.type === 'dashboard_update' && window.location.pathname.includes('/dashboard')) {
+                    if (typeof refreshDashboardData === 'function') refreshDashboardData(data.data);
+                }
+
+                if ((data.type === 'history_update' || data.type === 'sale_created') && window.location.pathname.includes('/history')) {
+                    if (typeof refreshHistoryData === 'function') refreshHistoryData();
+                }
+
+                if (data.type === 'reports_update' && window.location.pathname.includes('/reports')) {
+                    if (typeof refreshReports === 'function') refreshReports(data.data);
+                }
+            };
+
+            socket.onclose = function() {
+                setTimeout(connectWebSocket, 3000);
+            };
+        }
+
+        function showToastNotification(title, message, level) {
+            const bgClass = {
+                'success': 'text-bg-success',
+                'warning': 'text-bg-warning',
+                'danger': 'text-bg-danger',
+                'info': 'text-bg-info'
+            }[level] || 'text-bg-dark';
+
+            const toastId = 'toast-' + Date.now();
+            const toastHTML = `
+                <div id="${toastId}" class="toast align-items-center ${bgClass} border-0 show mb-2" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div class="d-flex">
+                        <div class="toast-body">
+                            <strong>${title}</strong><br>
+                            <small>${message}</small>
+                        </div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                    </div>
+                </div>
+            `;
+
+            const container = document.getElementById("toast-container");
+            if (container) container.insertAdjacentHTML("beforeend", toastHTML);
+
+            setTimeout(() => {
+                const el = document.getElementById(toastId);
+                if (el) el.remove();
+            }, 5000);
+        }
+
+        function addNotificationToBell(title, message, level) {
+            const badges = document.querySelectorAll(".notif-badge");
+            const lists = document.querySelectorAll(".notif-list");
+            const emptyMsgs = document.querySelectorAll(".empty-notif-msg");
+
+            emptyMsgs.forEach(msg => msg.remove());
+
+            unreadCount++;
+            badges.forEach(badge => {
+                badge.textContent = unreadCount;
+                badge.classList.remove("d-none");
+            });
+
+            const itemHTML = `
+                <li>
+                    <a class="dropdown-item py-2 border-bottom" href="#">
+                        <div class="fw-bold small text-${level}">${title}</div>
+                        <div class="text-wrap text-muted extra-small" style="font-size: 0.8rem;">${message}</div>
+                    </a>
+                </li>
+            `;
+            lists.forEach(list => list.insertAdjacentHTML("afterbegin", itemHTML));
+        }
+
+        // Clear badge counter on click
+        document.querySelectorAll("#desktopNotifDropdown, #mobileNotifDropdown").forEach(btn => {
+            btn.addEventListener("click", function () {
+                unreadCount = 0;
+                document.querySelectorAll(".notif-badge").forEach(badge => badge.classList.add("d-none"));
+            });
+        });
+
+        connectWebSocket();
+    });
+    </script>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

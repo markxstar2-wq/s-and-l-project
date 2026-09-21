@@ -1,0 +1,96 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Shop POS Checkout{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">Shop POS Checkout</h2>
+
+<div class="card card-kpi bg-white p-4">
+    <form method="post" action="{% url 'shop_pos' %}" id="posForm">
+        {% csrf_token %}
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label">Customer Name</label>
+                <input type="text" name="customer_name_raw" class="form-control" placeholder="Enter customer name" required>
+            </div>
+            
+            <div class="col-md-6">
+                <label class="form-label">Select Product</label>
+                <select name="product" id="productSelect" class="form-select" required>
+                    <option value="" data-price="0" data-stock="0">-- Choose Product --</option>
+                    {% for product in products %}
+                    <option value="{{ product.id }}" data-price="{{ product.default_unit_price }}" data-stock="{{ product.shop_stock }}">
+                        {{ product.product_name }} (Avail: {{ product.shop_stock }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label">Unit Price (UGX)</label>
+                <input type="number" step="0.01" name="unit_price" id="unitPrice" class="form-control" required>
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label">Quantity</label>
+                <input type="number" name="quantity" id="quantity" class="form-control" min="1" value="1" required>
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label">Total Amount (UGX)</label>
+                <input type="number" id="totalAmount" class="form-control" readonly>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Amount Paid (UGX)</label>
+                <input type="number" step="0.01" name="amount_paid" id="amountPaid" class="form-control" required>
+            </div>
+
+            <div class="col-md-6" id="dueDateContainer" style="display: none;">
+                <label class="form-label text-danger">Payment Due Date (Required for Debt)</label>
+                <input type="date" name="due_date" id="dueDate" class="form-control">
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-lg w-100 mt-4">Complete Transaction</button>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const productSelect = document.getElementById('productSelect');
+    const unitPrice = document.getElementById('unitPrice');
+    const quantity = document.getElementById('quantity');
+    const totalAmount = document.getElementById('totalAmount');
+    const amountPaid = document.getElementById('amountPaid');
+    const dueDateContainer = document.getElementById('dueDateContainer');
+    const dueDate = document.getElementById('dueDate');
+
+    function calculateTotal() {
+        const price = parseFloat(unitPrice.value) || 0;
+        const qty = parseInt(quantity.value) || 0;
+        const total = price * qty;
+        totalAmount.value = total.toFixed(2);
+        
+        const paid = parseFloat(amountPaid.value) || 0;
+        if (paid < total) {
+            dueDateContainer.style.display = 'block';
+            dueDate.required = true;
+        } else {
+            dueDateContainer.style.display = 'none';
+            dueDate.required = false;
+        }
+    }
+
+    productSelect.addEventListener('change', function() {
+        const selectedOption = productSelect.options[productSelect.selectedIndex];
+        unitPrice.value = selectedOption.getAttribute('data-price') || 0;
+        calculateTotal();
+    });
+
+    unitPrice.addEventListener('input', calculateTotal);
+    quantity.addEventListener('input', calculateTotal);
+    amountPaid.addEventListener('input', calculateTotal);
+</script>
+{% endblock %}

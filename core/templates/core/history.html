@@ -1,0 +1,325 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Inventory & Sales History{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">System Transaction History</h2>
+
+    <!-- Navigation Tabs -->
+    <ul class="nav nav-tabs mb-4" id="historyTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active fw-bold" id="stock-in-tab" data-bs-toggle="tab" data-bs-target="#stock-in" type="button" role="tab">
+                📥 Stock In History (Factory Intake)
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-bold" id="stock-out-tab" data-bs-toggle="tab" data-bs-target="#stock-out" type="button" role="tab">
+                🚚 Stock Out History (Shop Transfers)
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-bold" id="sales-history-tab" data-bs-toggle="tab" data-bs-target="#sales-history" type="button" role="tab">
+                🛒 Sales History (POS Records)
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="historyTabsContent">
+        <!-- 1. Stock In History Table -->
+        <div class="tab-pane fade show active" id="stock-in" role="tabpanel">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-primary">
+                                <tr>
+                                    <th>Date & Time</th>
+                                    <th>Product Code</th>
+                                    <th>Product Name</th>
+                                    <th>Quantity Added</th>
+                                    <th>Logged By</th>
+                                </tr>
+                            </thead>
+                            <tbody id="stock-in-tbody">
+                                {% for item in stock_in_history %}
+                                <tr>
+                                    <td>{{ item.created_at|date:"Y-m-d H:i" }}</td>
+                                    <td><code>{{ item.product.product_code|default:"N/A" }}</code></td>
+                                    <td>{{ item.product.product_name }}</td>
+                                    <td><span class="badge bg-success fs-6">+{{ item.quantity }}</span></td>
+                                    <td>{{ item.created_by.username|default:"System" }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted py-4">No Stock In records found.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. Stock Out History Table -->
+        <div class="tab-pane fade" id="stock-out" role="tabpanel">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-success">
+                                <tr>
+                                    <th>Date & Time</th>
+                                    <th>Product Code</th>
+                                    <th>Product Name</th>
+                                    <th>Quantity Transferred</th>
+                                    <th>Logged By</th>
+                                </tr>
+                            </thead>
+                            <tbody id="stock-out-tbody">
+                                {% for item in stock_out_history %}
+                                <tr>
+                                    <td>{{ item.created_at|date:"Y-m-d H:i" }}</td>
+                                    <td><code>{{ item.product.product_code|default:"N/A" }}</code></td>
+                                    <td>{{ item.product.product_name }}</td>
+                                    <td><span class="badge bg-warning text-dark fs-6">-{{ item.quantity }}</span></td>
+                                    <td>{{ item.created_by.username|default:"System" }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted py-4">No Stock Out records found.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. Sales History Table -->
+        <div class="tab-pane fade" id="sales-history" role="tabpanel">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-info">
+                                <tr>
+                                    <th>Date & Time</th>
+                                    <th>Receipt #</th>
+                                    <th>Customer</th>
+                                    <th>Items Bought & Qty</th>
+                                    <th>Total Amount</th>
+                                    <th>Amount Paid</th>
+                                    <th>Balance Due</th>
+                                    <th>Status</th>
+                                    <th>Cashier</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sales-history-tbody">
+                                {% for sale in sales_history %}
+                                <tr {% if sale.is_refunded %}class="table-danger text-muted"{% endif %}>
+                                    <td>{{ sale.created_at|date:"Y-m-d H:i" }}</td>
+                                    <td><code>{{ sale.receipt_number }}</code></td>
+                                    <td>
+                                        {% if sale.customer %}
+                                            {{ sale.customer.name }}
+                                        {% elif sale.customer_name_raw %}
+                                            {{ sale.customer_name_raw }}
+                                        {% else %}
+                                            Walk-in Customer
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <ul class="list-unstyled mb-0 small">
+                                            {% for item in sale.items.all %}
+                                                <li>
+                                                    <strong>{{ item.product.product_name }}</strong> 
+                                                    <span class="badge bg-secondary">x{{ item.quantity }}</span>
+                                                    @ UGX {{ item.unit_price_at_sale|floatformat:2 }}
+                                                </li>
+                                            {% empty %}
+                                                <li class="text-muted">No items recorded</li>
+                                            {% endfor %}
+                                        </ul>
+                                    </td>
+                                    <td class="fw-bold">
+                                        {% if sale.is_refunded %}
+                                            <s class="text-muted">UGX {{ sale.total_amount|floatformat:2 }}</s>
+                                        {% else %}
+                                            UGX {{ sale.total_amount|floatformat:2 }}
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-success">
+                                        {% if sale.is_refunded %}
+                                            <s class="text-muted">UGX {{ sale.amount_paid|floatformat:2 }}</s>
+                                        {% else %}
+                                            UGX {{ sale.amount_paid|floatformat:2 }}
+                                        {% endif %}
+                                    </td>
+                                    <td class="{% if sale.balance_due > 0 and not sale.is_refunded %}text-danger fw-bold{% else %}text-muted{% endif %}">
+                                        UGX {{ sale.balance_due|floatformat:2 }}
+                                    </td>
+                                    <td>
+                                        {% if sale.is_refunded %}
+                                            <span class="badge bg-danger">REFUNDED</span>
+                                        {% elif sale.payment_status == 'COMPLETED' or sale.balance_due == 0 %}
+                                            <span class="badge bg-success">COMPLETED</span>
+                                        {% else %}
+                                            <span class="badge bg-warning text-dark">PENDING</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ sale.cashier.username|default:"System" }}</td>
+                                    <td>
+                                        {% if not sale.is_refunded %}
+                                            <form action="{% url 'process_refund' sale.id %}" method="POST" onsubmit="return confirm('Are you sure you want to refund receipt {{ sale.receipt_number }}?');">
+                                                {% csrf_token %}
+                                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                    Refund
+                                                </button>
+                                            </form>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Refunded</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="10" class="text-center text-muted py-4">No sales records found.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- WebSocket Live Sync Client Script -->
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const wsProtocol = window.location.protocol === "https:" ? "wss://" : "ws://";
+    const socket = new WebSocket(wsProtocol + window.location.host + "/ws/live-updates/");
+    const csrfToken = '{{ csrf_token }}';
+
+    socket.onmessage = function (event) {
+        const payload = JSON.parse(event.data);
+
+        // Listen for relevant inventory and sales websocket broadcasts
+        const relevantEvents = ["stock_in_created", "stock_out_created", "sale_created", "sale_committed", "sale_refunded", "history_update"];
+        if (relevantEvents.includes(payload.type)) {
+            refreshHistoryData();
+        }
+    };
+
+    function refreshHistoryData() {
+        fetch("{% url 'history_stats_api' %}")
+            .then(response => response.json())
+            .then(data => {
+                const fmt = num => Number(num).toFixed(2);
+
+                // 1. Update Stock In Table
+                const stockInTbody = document.getElementById("stock-in-tbody");
+                if (data.stock_in_history.length === 0) {
+                    stockInTbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No Stock In records found.</td></tr>';
+                } else {
+                    stockInTbody.innerHTML = data.stock_in_history.map(item => `
+                        <tr>
+                            <td>${item.created_at}</td>
+                            <td><code>${item.product_code}</code></td>
+                            <td>${item.product_name}</td>
+                            <td><span class="badge bg-success fs-6">+${item.quantity}</span></td>
+                            <td>${item.created_by}</td>
+                        </tr>
+                    `).join('');
+                }
+
+                // 2. Update Stock Out Table
+                const stockOutTbody = document.getElementById("stock-out-tbody");
+                if (data.stock_out_history.length === 0) {
+                    stockOutTbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No Stock Out records found.</td></tr>';
+                } else {
+                    stockOutTbody.innerHTML = data.stock_out_history.map(item => `
+                        <tr>
+                            <td>${item.created_at}</td>
+                            <td><code>${item.product_code}</code></td>
+                            <td>${item.product_name}</td>
+                            <td><span class="badge bg-warning text-dark fs-6">-${item.quantity}</span></td>
+                            <td>${item.created_by}</td>
+                        </tr>
+                    `).join('');
+                }
+
+                // 3. Update Sales History Table
+                const salesTbody = document.getElementById("sales-history-tbody");
+                if (data.sales_history.length === 0) {
+                    salesTbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted py-4">No sales records found.</td></tr>';
+                } else {
+                    salesTbody.innerHTML = data.sales_history.map(sale => {
+                        const trClass = sale.is_refunded ? 'class="table-danger text-muted"' : '';
+                        
+                        const itemsListHTML = sale.items.length > 0
+                            ? sale.items.map(i => `
+                                <li>
+                                    <strong>${i.product_name}</strong> 
+                                    <span class="badge bg-secondary">x${i.quantity}</span>
+                                    @ UGX ${fmt(i.unit_price)}
+                                </li>
+                            `).join('')
+                            : '<li class="text-muted">No items recorded</li>';
+
+                        const totalAmountHTML = sale.is_refunded
+                            ? `<s class="text-muted">UGX ${fmt(sale.total_amount)}</s>`
+                            : `UGX ${fmt(sale.total_amount)}`;
+
+                        const amountPaidHTML = sale.is_refunded
+                            ? `<s class="text-muted">UGX ${fmt(sale.amount_paid)}</s>`
+                            : `UGX ${fmt(sale.amount_paid)}`;
+
+                        const balanceClass = (sale.balance_due > 0 && !sale.is_refunded) ? 'text-danger fw-bold' : 'text-muted';
+
+                        let statusBadge = '';
+                        if (sale.is_refunded) {
+                            statusBadge = '<span class="badge bg-danger">REFUNDED</span>';
+                        } else if (sale.payment_status === 'COMPLETED' || sale.balance_due === 0) {
+                            statusBadge = '<span class="badge bg-success">COMPLETED</span>';
+                        } else {
+                            statusBadge = '<span class="badge bg-warning text-dark">PENDING</span>';
+                        }
+
+                        const refundUrl = `/sales/${sale.id}/refund/`; // Matches process_refund view route URL
+                        const actionHTML = !sale.is_refunded
+                            ? `
+                                <form action="${refundUrl}" method="POST" onsubmit="return confirm('Are you sure you want to refund receipt ${sale.receipt_number}?');">
+                                    <input type="hidden" name="csrfmiddlewaretoken" value="${csrfToken}">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">Refund</button>
+                                </form>
+                            `
+                            : '<span class="badge bg-secondary">Refunded</span>';
+
+                        return `
+                            <tr ${trClass}>
+                                <td>${sale.created_at}</td>
+                                <td><code>${sale.receipt_number}</code></td>
+                                <td>${sale.customer_name}</td>
+                                <td><ul class="list-unstyled mb-0 small">${itemsListHTML}</ul></td>
+                                <td class="fw-bold">${totalAmountHTML}</td>
+                                <td class="text-success">${amountPaidHTML}</td>
+                                <td class="${balanceClass}">UGX ${fmt(sale.balance_due)}</td>
+                                <td>${statusBadge}</td>
+                                <td>${sale.cashier}</td>
+                                <td>${actionHTML}</td>
+                            </tr>
+                        `;
+                    }).join('');
+                }
+            })
+            .catch(err => console.error("Error updating transaction history stats:", err));
+    }
+});
+</script>
+{% endblock %}

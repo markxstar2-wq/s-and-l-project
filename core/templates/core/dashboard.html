@@ -1,0 +1,406 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Dashboard - Sales & Inventory{% endblock %}
+
+{% block content %}
+<!-- Alert Banner Container for Overdue Sales -->
+<div id="overdue-alerts-container">
+    {% for sale in pending_sales %}
+        {% if sale.is_overdue %}
+        <div class="alert alert-danger alert-dismissible fade show shadow-sm mb-3" role="alert" id="alert-sale-{{ sale.id }}">
+            <strong>⚠️ Debt Overdue Alert!</strong> Customer 
+            <strong>
+                {% if sale.customer %}{{ sale.customer.name }}{% elif sale.customer_name_raw %}{{ sale.customer_name_raw }}{% else %}Walk-in Customer{% endif %}
+            </strong> 
+            has an overdue balance of <strong><span class="alert-balance">{{ sale.balance_due }}</span> UGX</strong> on Receipt <code>{{ sale.receipt_number }}</code> (Due Date: {{ sale.due_date|date:"d-M-Y" }}).
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endif %}
+    {% endfor %}
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Dashboard Overview</h2>
+    {% if user.is_cashier %}
+    <form action="{% url 'close_shop' %}" method="post">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-warning" onclick="return confirm('Confirm close shop for today? This will commit all daytime sales.')">🌙 Close Shop & Commit Batch</button>
+    </form>
+    {% endif %}
+</div>
+
+<!-- KPI Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card card-kpi p-3 bg-white border-start border-primary border-4 shadow-sm">
+            <span class="text-muted small">Main Store Balance</span>
+            <h3 class="my-1"><span id="kpi-main-store">{{ total_main_store_stock }}</span> <small class="fs-6 text-muted">Units</small></h3>
+            <span class="text-secondary small">Warehouse Stock</span>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-kpi p-3 bg-white border-start border-success border-4 shadow-sm">
+            <span class="text-muted small">Shop Unsold Stock</span>
+            <h3 class="my-1"><span id="kpi-shop-stock">{{ total_shop_stock }}</span> <small class="fs-6 text-muted">Units</small></h3>
+            <span class="text-secondary small">Ready for POS Sale</span>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-kpi p-3 bg-white border-start border-info border-4 shadow-sm">
+            <span class="text-muted small">Total Stock Sold</span>
+            <h3 class="my-1"><span id="kpi-stock-sold">{{ total_stock_sold }}</span> <small class="fs-6 text-muted">Units</small></h3>
+            <span class="text-secondary small">Committed Sales</span>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-kpi p-3 bg-white border-start border-danger border-4 shadow-sm">
+            <span class="text-muted small">Total Outstanding Debt</span>
+            <h3 class="my-1"><span id="kpi-pending-credit">{{ total_pending_credit }}</span> <small class="fs-6 text-muted">UGX</small></h3>
+            <span class="text-danger small">Overdue Records: <span id="kpi-overdue-count">{{ overdue_count }}</span></span>
+        </div>
+    </div>
+</div>
+
+<!-- Pending & Overdue Credit Customers Section -->
+<div class="card card-kpi bg-white p-4 shadow-sm mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0 text-danger">Pending & Overdue Debtors</h5>
+        <span class="badge bg-danger fs-6" id="pending-count-badge">{{ pending_sales|length }} Total Pending</span>
+    </div>
+    <div class="table-responsive" style="max-height: 320px; overflow-y: auto;">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light" style="position: sticky; top: 0; z-index: 1;">
+                <tr>
+                    <th class="bg-light">Receipt #</th>
+                    <th class="bg-light">Customer</th>
+                    <th class="bg-light">Balance Due</th>
+                    <th class="bg-light">Due Date</th>
+                    <th class="bg-light">Status</th>
+                    <th class="bg-light text-end">Action</th>
+                </tr>
+            </thead>
+            <tbody id="debtors-tbody">
+                {% for sale in pending_sales %}
+                <tr id="debtor-row-{{ sale.id }}">
+                    <td><code>{{ sale.receipt_number }}</code></td>
+                    <td>
+                        <strong>
+                            {% if sale.customer %}
+                                {{ sale.customer.name }}
+                            {% elif sale.customer_name_raw %}
+                                {{ sale.customer_name_raw }}
+                            {% else %}
+                                Walk-in Customer
+                            {% endif %}
+                        </strong>
+                    </td>
+                    <td class="fw-bold text-danger"><span class="sale-balance">{{ sale.balance_due }}</span> UGX</td>
+                    <td>{{ sale.due_date|date:"d-M-Y"|default:"N/A" }}</td>
+                    <td>
+                        {% if sale.is_overdue %}
+                            <span class="badge bg-danger">OVERDUE</span>
+                        {% else %}
+                            <span class="badge bg-warning text-dark">PENDING</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        <button class="btn btn-sm btn-outline-success" 
+                                onclick="openPaymentModal('{{ sale.id }}', '{{ sale.receipt_number }}', '{{ sale.balance_due }}')">
+                            💳 Pay Debt
+                        </button>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr id="no-debtors-row">
+                    <td colspan="6" class="text-center text-muted py-3">No pending debts or credit sales recorded.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Per-Product Stock Summary Table -->
+<div class="card card-kpi bg-white p-4 shadow-sm mb-4">
+    <h5 class="mb-3">Product Stock Breakdown</h5>
+    <div class="table-responsive" style="max-height: 380px; overflow-y: auto;">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light" style="position: sticky; top: 0; z-index: 1;">
+                <tr>
+                    <th class="bg-light">Product Code</th>
+                    <th class="bg-light">Product Name</th>
+                    <th class="bg-light">Main Store Balance</th>
+                    <th class="bg-light">Unsold Shop Stock</th>
+                    <th class="bg-light">Status</th>
+                </tr>
+            </thead>
+            <tbody id="product-stock-tbody">
+                {% for product in products %}
+                <tr id="product-row-{{ product.id }}">
+                    <td><code>{{ product.product_code|default:"N/A" }}</code></td>
+                    <td><strong>{{ product.product_name }}</strong></td>
+                    
+                    {% if product.main_store_stock == 0 and product.shop_stock == 0 %}
+                        <td colspan="2" class="text-center text-muted fst-italic bg-light">Product not stocked in</td>
+                        <td><span class="badge bg-secondary">UNSTOCKED</span></td>
+                    {% else %}
+                        <td>
+                            {% if product.main_store_stock > 0 %}
+                                <span class="fw-bold text-primary">{{ product.main_store_stock }}</span> Units
+                            {% else %}
+                                <span class="text-muted">0 Units</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if product.shop_stock > 0 %}
+                                <span class="fw-bold text-success">{{ product.shop_stock }}</span> Units
+                            {% else %}
+                                <span class="text-danger fw-bold">Out of Stock</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if product.shop_stock > 0 %}
+                                <span class="badge bg-success">AVAILABLE</span>
+                            {% elif product.main_store_stock > 0 %}
+                                <span class="badge bg-warning text-dark">STORE ONLY</span>
+                            {% else %}
+                                <span class="badge bg-danger">OUT OF STOCK</span>
+                            {% endif %}
+                        </td>
+                    {% endif %}
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center text-muted py-3">No products registered in system yet.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Debt Payment Modal -->
+<div class="modal fade" id="paymentModal" tabindex="-1" aria-labelledby="paymentModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="debt-payment-form">
+                {% csrf_token %}
+                <input type="hidden" id="modal-sale-id" name="sale_id">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="paymentModalLabel">Record Debt Payment</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">Receipt Number</label>
+                        <input type="text" id="modal-receipt-no" class="form-control" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">Current Balance Due (UGX)</label>
+                        <input type="text" id="modal-balance-due" class="form-control fw-bold text-danger" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label for="amount_paid" class="form-label font-weight-bold">Amount Paid (UGX)</label>
+                        <input type="number" step="0.01" min="0.01" class="form-control" id="amount_paid" name="amount_paid" required placeholder="e.g. 50000">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success" id="btn-submit-payment">Submit Payment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- WebSocket & Debt Payment JS Script -->
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const wsProtocol = window.location.protocol === "https:" ? "wss://" : "ws://";
+    const socket = new WebSocket(wsProtocol + window.location.host + "/ws/live-updates/");
+
+    socket.onmessage = function (event) {
+        const payload = JSON.parse(event.data);
+        
+        // 1. Live dashboard stats updates (Triggers on new sale, debt payment, batch commit, stock transfer)
+        if (payload.type === "dashboard_update" || payload.type === "sale_update" || payload.type === "payment_update") {
+            refreshDashboardData();
+        }
+
+        // 2. Real-time Toast and Bell notifications
+        if (payload.type === "notification") {
+            const notif = payload.data || payload;
+            if (typeof showToastNotification === "function") {
+                showToastNotification(notif.title || "System Notification", notif.message, notif.level || "info");
+            }
+            if (typeof addNotificationToBell === "function") {
+                addNotificationToBell(notif.title || "System Notification", notif.message, notif.level || "info");
+            }
+            refreshDashboardData();
+        }
+    };
+
+    function refreshDashboardData() {
+        fetch("{% url 'dashboard_stats_api' %}")
+            .then(response => response.json())
+            .then(data => {
+                // Update KPI Cards
+                if (data.kpis) {
+                    document.getElementById("kpi-main-store").innerText = data.kpis.total_main_store_stock;
+                    document.getElementById("kpi-shop-stock").innerText = data.kpis.total_shop_stock;
+                    document.getElementById("kpi-stock-sold").innerText = data.kpis.total_stock_sold;
+                    document.getElementById("kpi-pending-credit").innerText = data.kpis.total_pending_credit;
+                    document.getElementById("kpi-overdue-count").innerText = data.kpis.overdue_count;
+                }
+
+                // Update Debtors Table
+                if (data.pending_sales) {
+                    updateDebtorsTable(data.pending_sales);
+                }
+
+                // Update Product Stock Breakdown Table
+                if (data.products) {
+                    data.products.forEach(p => {
+                        const row = document.getElementById(`product-row-${p.id}`);
+                        if (row) {
+                            row.innerHTML = buildProductRowHTML(p);
+                        }
+                    });
+                }
+            })
+            .catch(err => console.error("Error updating dashboard stats:", err));
+    }
+
+    function updateDebtorsTable(pendingSales) {
+        const tbody = document.getElementById("debtors-tbody");
+        const badge = document.getElementById("pending-count-badge");
+        
+        badge.innerText = `${pendingSales.length} Total Pending`;
+
+        if (pendingSales.length === 0) {
+            tbody.innerHTML = `
+                <tr id="no-debtors-row">
+                    <td colspan="6" class="text-center text-muted py-3">No pending debts or credit sales recorded.</td>
+                </tr>`;
+            return;
+        }
+
+        tbody.innerHTML = pendingSales.map(sale => `
+            <tr id="debtor-row-${sale.id}">
+                <td><code>${sale.receipt_number}</code></td>
+                <td><strong>${sale.customer_name}</strong></td>
+                <td class="fw-bold text-danger"><span class="sale-balance">${sale.balance_due}</span> UGX</td>
+                <td>${sale.due_date}</td>
+                <td>
+                    ${sale.is_overdue 
+                        ? '<span class="badge bg-danger">OVERDUE</span>' 
+                        : '<span class="badge bg-warning text-dark">PENDING</span>'}
+                </td>
+                <td class="text-end">
+                    <button class="btn btn-sm btn-outline-success" 
+                            onclick="openPaymentModal('${sale.id}', '${sale.receipt_number}', '${sale.balance_due}')">
+                        💳 Pay Debt
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    function buildProductRowHTML(p) {
+        if (p.main_store_stock === 0 && p.shop_stock === 0) {
+            return `
+                <td><code>${p.product_code || 'N/A'}</code></td>
+                <td><strong>${p.product_name}</strong></td>
+                <td colspan="2" class="text-center text-muted fst-italic bg-light">Product not stocked in</td>
+                <td><span class="badge bg-secondary">UNSTOCKED</span></td>
+            `;
+        }
+
+        const mainStockHTML = p.main_store_stock > 0 
+            ? `<span class="fw-bold text-primary">${p.main_store_stock}</span> Units` 
+            : `<span class="text-muted">0 Units</span>`;
+
+        const shopStockHTML = p.shop_stock > 0 
+            ? `<span class="fw-bold text-success">${p.shop_stock}</span> Units` 
+            : `<span class="text-danger fw-bold">Out of Stock</span>`;
+
+        let statusBadge = '';
+        if (p.shop_stock > 0) {
+            statusBadge = '<span class="badge bg-success">AVAILABLE</span>';
+        } else if (p.main_store_stock > 0) {
+            statusBadge = '<span class="badge bg-warning text-dark">STORE ONLY</span>';
+        } else {
+            statusBadge = '<span class="badge bg-danger">OUT OF STOCK</span>';
+        }
+
+        return `
+            <td><code>${p.product_code || 'N/A'}</code></td>
+            <td><strong>${p.product_name}</strong></td>
+            <td>${mainStockHTML}</td>
+            <td>${shopStockHTML}</td>
+            <td>${statusBadge}</td>
+        `;
+    }
+
+    // Submit Debt Payment Form via AJAX
+    const paymentForm = document.getElementById("debt-payment-form");
+    if (paymentForm) {
+        paymentForm.addEventListener("submit", function (e) {
+            e.preventDefault();
+            const saleId = document.getElementById("modal-sale-id").value;
+            const amountPaid = document.getElementById("amount_paid").value;
+            const submitBtn = document.getElementById("btn-submit-payment");
+
+            submitBtn.disabled = true;
+            submitBtn.innerText = "Processing...";
+
+            fetch("{% url 'record_debt_payment' %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value
+                },
+                body: new URLSearchParams({
+                    "sale_id": saleId,
+                    "amount_paid": amountPaid
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                submitBtn.disabled = false;
+                submitBtn.innerText = "Submit Payment";
+
+                if (data.success) {
+                    const paymentModal = bootstrap.Modal.getInstance(document.getElementById('paymentModal'));
+                    paymentModal.hide();
+                    paymentForm.reset();
+                    refreshDashboardData();
+                } else {
+                    alert(data.error || "Failed to process payment.");
+                }
+            })
+            .catch(err => {
+                submitBtn.disabled = false;
+                submitBtn.innerText = "Submit Payment";
+                console.error("Payment error:", err);
+            });
+        });
+    }
+});
+
+// Helper function to launch payment modal
+function openPaymentModal(saleId, receiptNumber, balanceDue) {
+    document.getElementById("modal-sale-id").value = saleId;
+    document.getElementById("modal-receipt-no").value = receiptNumber;
+    document.getElementById("modal-balance-due").value = balanceDue;
+    document.getElementById("amount_paid").value = "";
+    
+    const modalEl = document.getElementById('paymentModal');
+    let paymentModal = bootstrap.Modal.getInstance(modalEl);
+    if (!paymentModal) {
+        paymentModal = new bootstrap.Modal(modalEl);
+    }
+    paymentModal.show();
+}
+</script>
+{% endblock %}

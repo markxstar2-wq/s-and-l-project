@@ -1,0 +1,176 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Sales & Performance Reports{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>📊 Business Performance Reports</h2>
+
+        <!-- Time Filter Dropdown -->
+        <form method="get" action="{% url 'reports' %}" class="d-flex align-items-center gap-2" id="period-form">
+            <label class="fw-bold mb-0">Period:</label>
+            <select name="period" id="period-select" class="form-select w-auto" onchange="this.form.submit()">
+                <option value="day" {% if period == 'day' %}selected{% endif %}>Today</option>
+                <option value="week" {% if period == 'week' %}selected{% endif %}>Last 7 Days</option>
+                <option value="month" {% if period == 'month' %}selected{% endif %}>Last 30 Days</option>
+                <option value="6months" {% if period == '6months' %}selected{% endif %}>Last 6 Months</option>
+                <option value="year" {% if period == 'year' %}selected{% endif %}>Last 1 Year</option>
+                <option value="all" {% if period == 'all' %}selected{% endif %}>All Time</option>
+            </select>
+        </form>
+    </div>
+
+    <!-- KPI Summary Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white p-3 shadow-sm">
+                <h6>Total Sales Value</h6>
+                <h3>UGX <span id="report-total-revenue">{{ total_revenue|floatformat:2 }}</span></h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white p-3 shadow-sm">
+                <h6>Cash Collected</h6>
+                <h3>UGX <span id="report-total-collected">{{ total_collected|floatformat:2 }}</span></h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-danger text-white p-3 shadow-sm">
+                <h6>Pending Debt</h6>
+                <h3>UGX <span id="report-pending-debt">{{ total_pending_debt|floatformat:2 }}</span></h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-dark text-white p-3 shadow-sm">
+                <h6>Transactions Count</h6>
+                <h3 id="report-sales-count">{{ total_sales_count }}</h3>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Top Customers Table -->
+        <div class="col-md-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white fw-bold">🏆 Highest Paying Customers</div>
+                <div class="card-body p-0">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Customer</th>
+                                <th>Orders</th>
+                                <th>Total Spent</th>
+                            </tr>
+                        </thead>
+                        <tbody id="top-customers-tbody">
+                            {% for c in top_customers %}
+                            <tr>
+                                <td>{{ c.customer__name }} <br><small class="text-muted">{{ c.customer__phone|default:"" }}</small></td>
+                                <td>{{ c.total_orders }}</td>
+                                <td class="fw-bold">UGX {{ c.total_spent|floatformat:2 }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="3" class="text-center text-muted py-3">No customer records in this period.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Selling Products Table -->
+        <div class="col-md-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white fw-bold">📦 Top Selling Products</div>
+                <div class="card-body p-0">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Product</th>
+                                <th>Qty Sold</th>
+                                <th>Total Value</th>
+                            </tr>
+                        </thead>
+                        <tbody id="top-products-tbody">
+                            {% for p in top_products %}
+                            <tr>
+                                <td>{{ p.product__product_name }} <br><code>{{ p.product__product_code }}</code></td>
+                                <td><span class="badge bg-secondary">{{ p.total_qty }}</span></td>
+                                <td class="fw-bold">UGX {{ p.total_sales_val|floatformat:2 }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="3" class="text-center text-muted py-3">No product sales in this period.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- WebSocket Live Sync Client Script -->
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const wsProtocol = window.location.protocol === "https:" ? "wss://" : "ws://";
+    const socket = new WebSocket(wsProtocol + window.location.host + "/ws/live-updates/");
+
+    socket.onmessage = function (event) {
+        const payload = JSON.parse(event.data);
+        
+        // Trigger live refresh on relevant channel events
+        if (["sale_created", "sale_committed", "sale_refunded", "reports_update"].includes(payload.type)) {
+            refreshReportsData();
+        }
+    };
+
+    function refreshReportsData() {
+        const period = document.getElementById("period-select").value;
+        const apiUrl = `{% url 'reports_stats_api' %}?period=${encodeURIComponent(period)}`;
+
+        fetch(apiUrl)
+            .then(response => response.json())
+            .then(data => {
+                // Helper to format numbers with 2 decimals
+                const fmt = num => Number(num).toFixed(2);
+
+                // Update KPI Cards
+                document.getElementById("report-total-revenue").innerText = fmt(data.kpis.total_revenue);
+                document.getElementById("report-total-collected").innerText = fmt(data.kpis.total_collected);
+                document.getElementById("report-pending-debt").innerText = fmt(data.kpis.total_pending_debt);
+                document.getElementById("report-sales-count").innerText = data.kpis.total_sales_count;
+
+                // Update Top Customers Table
+                const customerTbody = document.getElementById("top-customers-tbody");
+                if (data.top_customers.length === 0) {
+                    customerTbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-3">No customer records in this period.</td></tr>';
+                } else {
+                    customerTbody.innerHTML = data.top_customers.map(c => `
+                        <tr>
+                            <td>${c.name} <br><small class="text-muted">${c.phone}</small></td>
+                            <td>${c.orders}</td>
+                            <td class="fw-bold">UGX ${fmt(c.spent)}</td>
+                        </tr>
+                    `).join('');
+                }
+
+                // Update Top Products Table
+                const productTbody = document.getElementById("top-products-tbody");
+                if (data.top_products.length === 0) {
+                    productTbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-3">No product sales in this period.</td></tr>';
+                } else {
+                    productTbody.innerHTML = data.top_products.map(p => `
+                        <tr>
+                            <td>${p.name} <br><code>${p.code}</code></td>
+                            <td><span class="badge bg-secondary">${p.qty}</span></td>
+                            <td class="fw-bold">UGX ${fmt(p.value)}</td>
+                        </tr>
+                    `).join('');
+                }
+            })
+            .catch(err => console.error("Error updating reports stats:", err));
+    }
+});
+</script>
+{% endblock %}

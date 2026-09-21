@@ -1,0 +1,297 @@
+{% extends 'core/base.html' %}
+
+{% block title %}System Settings - Inventory & POS{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>System Settings</h2>
+    <span class="badge bg-primary fs-6">Admin Control Panel</span>
+</div>
+
+<!-- Navigation Tabs -->
+<ul class="nav nav-tabs nav-fill mb-4" id="settingsTab" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active fw-bold" id="products-tab" data-bs-toggle="tab" data-bs-target="#products" type="button" role="tab" aria-controls="products" aria-selected="true">
+            📦 Product Management
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link fw-bold" id="users-tab" data-bs-toggle="tab" data-bs-target="#users" type="button" role="tab" aria-controls="users" aria-selected="false">
+            👥 User Management
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link fw-bold" id="notifications-tab" data-bs-toggle="tab" data-bs-target="#notifications" type="button" role="tab" aria-controls="notifications" aria-selected="false">
+            🔔 Stock Alerts & Notifications
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link fw-bold" id="general-tab" data-bs-toggle="tab" data-bs-target="#general" type="button" role="tab" aria-controls="general" aria-selected="false">
+            ⚙️ General & Receipt Info
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content" id="settingsTabContent">
+
+    <!-- ========================================== -->
+    <!-- TAB 1: PRODUCT MANAGEMENT                 -->
+    <!-- ========================================== -->
+    <div class="tab-pane fade show active" id="products" role="tabpanel" aria-labelledby="products-tab">
+        <div class="row g-4">
+            <!-- Add New Product Form -->
+            <div class="col-lg-4">
+                <div class="card border-0 shadow-sm p-4 bg-white">
+                    <h5 class="mb-3 text-primary">Add New Product Catalog</h5>
+                    <form method="post" action="{% url 'add_product' %}">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="product_code" class="form-label fw-bold">Product Code / SKU</label>
+                            <input type="text" class="form-control" id="product_code" name="product_code" placeholder="e.g. PRD-1001" required>
+                            <div class="form-text">Unique barcode or code identifier.</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="product_name" class="form-label fw-bold">Product Name</label>
+                            <input type="text" class="form-control" id="product_name" name="product_name" placeholder="e.g. Sugar 1kg" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="category" class="form-label fw-bold">Category (Optional)</label>
+                            <input type="text" class="form-control" id="category" name="category" placeholder="e.g. Groceries">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="min_stock_level" class="form-label fw-bold">Low Stock Warning Level</label>
+                            <input type="number" class="form-control" id="min_stock_level" name="min_stock_level" value="10" min="0">
+                            <div class="form-text">Triggers low-stock warning if main store stock falls below this amount.</div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100 fw-bold">➕ Save Master Product</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Existing Products List -->
+            <div class="col-lg-8">
+                <div class="card border-0 shadow-sm p-4 bg-white">
+                    <h5 class="mb-3">Registered Master Catalog</h5>
+                    <div class="table-responsive" style="max-height: 420px; overflow-y: auto;">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light" style="position: sticky; top: 0; z-index: 1;">
+                                <tr>
+                                    <th class="bg-light">Code</th>
+                                    <th class="bg-light">Name</th>
+                                    <th class="bg-light">Category</th>
+                                    <th class="bg-light">Min Limit</th>
+                                    <th class="bg-light text-end">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for product in products %}
+                                <tr>
+                                    <td><code>{{ product.product_code }}</code></td>
+                                    <td><strong>{{ product.product_name }}</strong></td>
+                                    <td>{{ product.category|default:"Uncategorized" }}</td>
+                                    <td><span class="badge bg-warning text-dark">{{ product.min_stock_level|default:"10" }} Units</span></td>
+                                    <td class="text-end">
+                                        <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editProductModal{{ product.id }}">✏️ Edit</button>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted py-4">No products registered yet. Add one using the form.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TAB 2: USER CREATION & ROLES              -->
+    <!-- ========================================== -->
+    <!-- ========================================== -->
+<!-- TAB 2: USER CREATION & ROLES              -->
+<!-- ========================================== -->
+<div class="tab-pane fade" id="users" role="tabpanel" aria-labelledby="users-tab">
+    <div class="row g-4">
+        
+        {% if request.user.is_superuser or request.user.role == 'admin' %}
+        <!-- Add User Form (Admin Only) -->
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm p-4 bg-white">
+                <h5 class="mb-3 text-primary">➕ Register New System User</h5>
+                <form method="post" action="{% url 'add_user' %}">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="username" class="form-label fw-bold">Username</label>
+                        <input type="text" class="form-control" id="username" name="username" placeholder="e.g. john_doe" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="email" class="form-label fw-bold">Email Address</label>
+                        <input type="email" class="form-control" id="email" name="email" placeholder="e.g. john@example.com">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="password" class="form-label fw-bold">Initial Password</label>
+                        <input type="password" class="form-control" id="password" name="password" placeholder="••••••••" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="role" class="form-label fw-bold">Assign System Role</label>
+                        <select id="role" name="role" class="form-select" required>
+                            <option value="" disabled selected>-- Select Role --</option>
+                            <option value="shop">Shop Cashier (POS & Sales Access)</option>
+                            <option value="main_store">Main Store Manager (Warehouse Control)</option>
+                            <option value="admin">System Administrator (Full Control)</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100 fw-bold">👤 Create User Account</button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Existing Users List -->
+        <div class="{% if request.user.is_superuser or request.user.role == 'admin' %}col-lg-8{% else %}col-lg-12{% endif %}">
+            <div class="card border-0 shadow-sm p-4 bg-white">
+                <h5 class="mb-3">Active System Accounts</h5>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Username</th>
+                                <th>Email</th>
+                                <th>Current Role</th>
+                                <th>Assigned Location</th>
+                                {% if request.user.is_superuser or request.user.role == 'admin' %}
+                                <th class="text-end">Action</th>
+                                {% endif %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user_item in site_users %}
+                            <tr>
+                                <td><strong>{{ user_item.username }}</strong></td>
+                                <td>{{ user_item.email|default:"N/A" }}</td>
+                                <td>
+                                    {% if user_item.is_superuser or user_item.role == 'admin' %}
+                                        <span class="badge bg-dark">Super Admin</span>
+                                    {% elif user_item.role == 'main_store' %}
+                                        <span class="badge bg-primary">Main Store Manager</span>
+                                    {% elif user_item.role == 'shop' %}
+                                        <span class="badge bg-success">Shop Cashier</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Unassigned</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if user_item.role == 'main_store' %}
+                                        🏭 Main Warehouse
+                                    {% elif user_item.role == 'shop' %}
+                                        🛒 POS / Shop Floor
+                                    {% else %}
+                                        🏢 All / Admin Access
+                                    {% endif %}
+                                </td>
+                                {% if request.user.is_superuser or request.user.role == 'admin' %}
+                                <td class="text-end">
+                                    <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#userRoleModal{{ user_item.id }}">
+                                        ⚙️ Edit Role
+                                    </button>
+                                </td>
+                                {% endif %}
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-3">No active users found.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+    <!-- ========================================== -->
+    <!-- TAB 3: NOTIFICATIONS & ALERT RULES        -->
+    <!-- ========================================== -->
+    <div class="tab-pane fade" id="notifications" role="tabpanel" aria-labelledby="notifications-tab">
+        <div class="card border-0 shadow-sm p-4 bg-white">
+            <h5 class="mb-3">Notification Routing & Stock Alerts</h5>
+            <form method="post" action="{% url 'save_notification_settings' %}">
+                {% csrf_token %}
+                <div class="mb-4">
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" id="notify_shop_on_main_stockout" name="notify_shop_on_main_stockout" checked>
+                        <label class="form-check-label fw-bold" for="notify_shop_on_main_stockout">
+                            Notify Shop Cashiers when a product is OUT OF STOCK in Main Store
+                        </label>
+                        <div class="form-text">Alerts cashiers so they don't promise customers items that cannot be replenished from the warehouse.</div>
+                    </div>
+
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" id="notify_main_on_shop_low" name="notify_main_on_shop_low" checked>
+                        <label class="form-check-label fw-bold" for="notify_main_on_shop_low">
+                            Notify Main Store Manager when Shop inventory runs low
+                        </label>
+                        <div class="form-text">Triggers a restock request notification to the Main Store manager to prepare items for transfer.</div>
+                    </div>
+
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" id="enable_overdue_debt_alerts" name="enable_overdue_debt_alerts" checked>
+                        <label class="form-check-label fw-bold" for="enable_overdue_debt_alerts">
+                            Show Overdue Customer Debt Banners on Dashboard
+                        </label>
+                        <div class="form-text">Displays prominent alert banners whenever customer credit payments pass their due dates.</div>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary fw-bold">💾 Save Notification Preferences</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TAB 4: GENERAL APP & RECEIPT CONFIG      -->
+    <!-- ========================================== -->
+    <div class="tab-pane fade" id="general" role="tabpanel" aria-labelledby="general-tab">
+        <div class="card border-0 shadow-sm p-4 bg-white">
+            <h5 class="mb-3">Business & Receipt Information</h5>
+            <form method="post" action="{% url 'save_general_settings' %}">
+                {% csrf_token %}
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Business / Shop Name</label>
+                        <input type="text" class="form-control" name="shop_name" value="{{ settings.shop_name|default:'My Retail Store' }}" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Phone Number</label>
+                        <input type="text" class="form-control" name="shop_phone" value="{{ settings.shop_phone|default:'+256 ...' }}">
+                    </div>
+                    <div class="col-md-12">
+                        <label class="form-label fw-bold">Business Physical Address</label>
+                        <input type="text" class="form-control" name="shop_address" value="{{ settings.shop_address|default:'Plot 12, Main Street' }}">
+                    </div>
+                    <div class="col-md-12">
+                        <label class="form-label fw-bold">Receipt Footer Note</label>
+                        <input type="text" class="form-control" name="receipt_footer" value="{{ settings.receipt_footer|default:'Thank you for shopping with us! Goods once sold are not returnable.' }}">
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary fw-bold">💾 Update Business Profile</button>
+            </form>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

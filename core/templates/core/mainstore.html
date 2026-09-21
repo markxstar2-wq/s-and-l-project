@@ -1,0 +1,101 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Main Store Operations{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">Main Store (Warehouse Operations)</h2>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {% endfor %}
+{% endif %}
+
+<div class="row g-4 mb-4">
+    <!-- Stock In Form (Factory Intake) -->
+    <div class="col-md-6">
+        <div class="card bg-white p-4">
+            <h5 class="card-title text-primary mb-3">📥 Stock In (Factory Intake)</h5>
+            <form method="post" action="{% url 'main_store' %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="stock_in">
+                
+                <div class="mb-3">
+                    <label class="form-label">Product Code</label>
+                    <select id="stock_in_code" class="form-select" onchange="syncSelect('stock_in_code', 'stock_in_product')">
+                        <option value="">-- Select Code --</option>
+                        {% for product in products %}
+                            <option value="{{ product.id }}">{{ product.product_code }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Product Name</label>
+                    <select name="stock_in-product" id="stock_in_product" class="form-select" required onchange="syncSelect('stock_in_product', 'stock_in_code')">
+                        <option value="">-- Select Product Name --</option>
+                        {% for product in products %}
+                            <option value="{{ product.id }}">{{ product.product_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Quantity Received</label>
+                    {{ stock_in_form.quantity }}
+                </div>
+                <button type="submit" class="btn btn-primary w-100">Add Factory Stock</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Stock Out Form (Transfer to Shop) -->
+    <div class="col-md-6">
+        <div class="card bg-white p-4">
+            <h5 class="card-title text-success mb-3">🚚 Stock Out (Transfer to Shop)</h5>
+            <form method="post" action="{% url 'main_store' %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="stock_out">
+                
+                <div class="mb-3">
+                    <label class="form-label">Product Code</label>
+                    <select id="stock_out_code" class="form-select" onchange="syncSelect('stock_out_code', 'stock_out_product')">
+                        <option value="">-- Select Code --</option>
+                        {% for product in products %}
+                            <option value="{{ product.id }}">{{ product.product_code }} (Avail: {{ product.main_store_stock }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Product Name</label>
+                    <select name="stock_out-product" id="stock_out_product" class="form-select" required onchange="syncSelect('stock_out_product', 'stock_out_code')">
+                        <option value="">-- Select Product Name --</option>
+                        {% for product in products %}
+                            <option value="{{ product.id }}">{{ product.product_name }} (Avail: {{ product.main_store_stock }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Quantity to Transfer</label>
+                    {{ stock_out_form.quantity }}
+                </div>
+                <button type="submit" class="btn btn-success w-100">Transfer to Shop Floor</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript to Keep Code & Name Synced -->
+<script>
+function syncSelect(sourceId, targetId) {
+    const sourceSelect = document.getElementById(sourceId);
+    const targetSelect = document.getElementById(targetId);
+    targetSelect.value = sourceSelect.value;
+}
+</script>
+{% endblock %}

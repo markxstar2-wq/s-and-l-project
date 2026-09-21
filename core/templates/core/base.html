@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Sales & Inventory System{% endblock %}</title>
+    <title>{% block title %}Byc System{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body { background-color: #f4f6f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
@@ -15,12 +15,12 @@
 </head>
 <body>
 
-    <!-- Mobile Top Navigation Bar (Visible only on screens smaller than md) -->
+    <!-- Mobile Top Navigation Bar -->
     <nav class="navbar navbar-dark bg-dark d-md-none px-3">
         <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileSidebar" aria-controls="mobileSidebar">
             <span class="navbar-toggler-icon"></span>
         </button>
-        <span class="navbar-brand mb-0 h1 fs-6">S&I System</span>
+        <span class="navbar-brand mb-0 h1 fs-6">{% block brand_mobile %}Byc System{% endblock %}</span>
 
         <!-- Mobile Notification Bell -->
         <div class="dropdown">
@@ -39,7 +39,7 @@
     <!-- Mobile Offcanvas Drawer -->
     <div class="offcanvas offcanvas-start bg-dark text-white d-md-none" tabindex="-1" id="mobileSidebar" aria-labelledby="mobileSidebarLabel">
         <div class="offcanvas-header border-bottom border-secondary">
-            <h5 class="offcanvas-title" id="mobileSidebarLabel">S&I System</h5>
+            <h5 class="offcanvas-title" id="mobileSidebarLabel">{% block brand_drawer %}Byc System{% endblock %}</h5>
             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
         </div>
         <div class="offcanvas-body p-3">
@@ -49,10 +49,10 @@
 
     <div class="container-fluid">
         <div class="row">
-            <!-- Desktop Sidebar Navigation (Visible on md and larger screens) -->
+            <!-- Desktop Sidebar Navigation -->
             <nav class="col-md-2 d-none d-md-block sidebar p-3">
                 <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h4 class="text-white mb-0 ps-2">S&I System</h4>
+                    <h4 class="text-white mb-0 ps-2">{% block brand_desktop %}Byc System{% endblock %}</h4>
                     
                     <!-- Desktop Notification Bell -->
                     <div class="dropdown">
@@ -110,14 +110,12 @@
             socket.onmessage = function (event) {
                 const data = JSON.parse(event.data);
 
-                // 1. Toast & Bell Notifications
                 if (data.type === "notification") {
                     const notif = data.data || data;
                     showToastNotification(notif.title || "Notification", notif.message, notif.level);
                     addNotificationToBell(notif.title || "Notification", notif.message, notif.level);
                 }
 
-                // 2. Dynamic Page Handlers
                 if (data.type === 'dashboard_update' && window.location.pathname.includes('/dashboard')) {
                     if (typeof refreshDashboardData === 'function') refreshDashboardData(data.data);
                 }
@@ -190,7 +188,6 @@
             lists.forEach(list => list.insertAdjacentHTML("afterbegin", itemHTML));
         }
 
-        // Clear badge counter on click
         document.querySelectorAll("#desktopNotifDropdown, #mobileNotifDropdown").forEach(btn => {
             btn.addEventListener("click", function () {
                 unreadCount = 0;

@@ -56,7 +56,7 @@
     <div class="col-md-6">
         <div class="card bg-white p-4">
             <h5 class="card-title text-success mb-3">🚚 Stock Out (Transfer to Shop)</h5>
-            <form method="post" action="{% url 'main_store' %}">
+            <form id="stockOutForm" method="post" action="{% url 'main_store' %}">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="stock_out">
                 
@@ -75,7 +75,7 @@
                     <select name="stock_out-product" id="stock_out_product" class="form-select" required onchange="syncSelect('stock_out_product', 'stock_out_code')">
                         <option value="">-- Select Product Name --</option>
                         {% for product in products %}
-                            <option value="{{ product.id }}">{{ product.product_name }} (Avail: {{ product.main_store_stock }})</option>
+                            <option value="{{ product.id }}" data-product-name="{{ product.product_name }}">{{ product.product_name }} (Avail: {{ product.main_store_stock }})</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -90,12 +90,39 @@
     </div>
 </div>
 
-<!-- JavaScript to Keep Code & Name Synced -->
+<!-- JavaScript to Keep Code & Name Synced + Handle Real-Time WebSocket Broadcast -->
 <script>
 function syncSelect(sourceId, targetId) {
     const sourceSelect = document.getElementById(sourceId);
     const targetSelect = document.getElementById(targetId);
     targetSelect.value = sourceSelect.value;
 }
+
+document.addEventListener("DOMContentLoaded", function () {
+    const stockOutForm = document.getElementById("stockOutForm");
+    
+    if (stockOutForm) {
+        stockOutForm.addEventListener("submit", function (e) {
+            const productSelect = document.getElementById("stock_out_product");
+            const selectedOption = productSelect.options[productSelect.selectedIndex];
+            const productName = selectedOption ? selectedOption.getAttribute("data-product-name") : "Product";
+            
+            // Find quantity field rendered by Django form
+            const quantityInput = stockOutForm.querySelector("input[name$='quantity']") || stockOutForm.querySelector("input[type='number']");
+            const quantity = quantityInput ? quantityInput.value : 0;
+
+            // Send real-time payload via WebSocket connection (if socket is active in base.html)
+            if (window.notificationSocket && window.notificationSocket.readyState === WebSocket.OPEN) {
+                window.notificationSocket.send(JSON.stringify({
+                    'type': 'stock_out_broadcast',
+                    'product_name': productName,
+                    'quantity': quantity,
+                    'released_by': "{{ request.user.username }}",
+                    'destination': "Shop Floor"
+                }));
+            }
+        });
+    }
+});
 </script>
 {% endblock %}

@@ -100,10 +100,28 @@
 
         <!-- 3. Sales History Table -->
         <div class="tab-pane fade" id="sales-history" role="tabpanel">
+            <!-- Search Bar & Controls -->
+            <div class="card shadow-sm border-0 mb-3">
+                <div class="card-body bg-light rounded">
+                    <div class="row align-items-center g-2">
+                        <div class="col-md-6 col-lg-5">
+                            <div class="input-group">
+                                <span class="input-group-text bg-white border-end-0">🔍</span>
+                                <input type="text" id="sales-search-input" class="form-control border-start-0" placeholder="Search customer name or receipt #..." aria-label="Search customer">
+                                <button class="btn btn-outline-secondary" type="button" id="clear-search-btn" style="display: none;">✕</button>
+                            </div>
+                        </div>
+                        <div class="col-md-6 col-lg-7 text-md-end text-muted small">
+                            <span id="search-counter" class="fw-semibold">Showing all records</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="card shadow-sm border-0">
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0">
+                        <table class="table table-hover align-middle mb-0" id="sales-table">
                             <thead class="table-info">
                                 <tr>
                                     <th>Date & Time</th>
@@ -120,10 +138,10 @@
                             </thead>
                             <tbody id="sales-history-tbody">
                                 {% for sale in sales_history %}
-                                <tr {% if sale.is_refunded %}class="table-danger text-muted"{% endif %}>
+                                <tr {% if sale.is_refunded %}class="table-danger text-muted"{% endif %} data-customer="{% if sale.customer %}{{ sale.customer.name|lower }}{% elif sale.customer_name_raw %}{{ sale.customer_name_raw|lower }}{% else %}walk-in customer{% endif %}" data-receipt="{{ sale.receipt_number|lower }}">
                                     <td>{{ sale.created_at|date:"Y-m-d H:i" }}</td>
                                     <td><code>{{ sale.receipt_number }}</code></td>
-                                    <td>
+                                    <td class="customer-cell">
                                         {% if sale.customer %}
                                             {{ sale.customer.name }}
                                         {% elif sale.customer_name_raw %}
@@ -199,7 +217,7 @@
                                     </td>
                                 </tr>
                                 {% empty %}
-                                <tr>
+                                <tr id="no-sales-row">
                                     <td colspan="10" class="text-center text-muted py-4">No sales records found.</td>
                                 </tr>
                                 {% endfor %}
@@ -218,6 +236,59 @@ document.addEventListener("DOMContentLoaded", function () {
     const socket = new WebSocket(wsProtocol + window.location.host + "/ws/live-updates/");
     const csrfToken = '{{ csrf_token }}';
 
+    const searchInput = document.getElementById("sales-search-input");
+    const clearBtn = document.getElementById("clear-search-btn");
+    const searchCounter = document.getElementById("search-counter");
+
+    // Helper function to sanitize string inputs for safer rendering
+    function escapeHtml(str) {
+        return String(str || '').replace(/[&<>"']/g, match => {
+            const escapeMap = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+            return escapeMap[match];
+        });
+    }
+
+    // Filter Sales History Table by Customer Name or Receipt Number
+    function filterSalesTable() {
+        const query = searchInput.value.trim().toLowerCase();
+        const rows = document.querySelectorAll("#sales-history-tbody tr:not(#no-sales-row)");
+        let visibleCount = 0;
+
+        clearBtn.style.display = query.length > 0 ? "block" : "none";
+
+        rows.forEach(row => {
+            const customerName = row.getAttribute("data-customer") || "";
+            const receiptNum = row.getAttribute("data-receipt") || "";
+
+            if (customerName.includes(query) || receiptNum.includes(query)) {
+                row.style.display = "";
+                visibleCount++;
+            } else {
+                row.style.display = "none";
+            }
+        });
+
+        if (searchCounter) {
+            if (query.length > 0) {
+                searchCounter.textContent = `Found ${visibleCount} transaction(s) for "${searchInput.value.trim()}"`;
+            } else {
+                searchCounter.textContent = "Showing all records";
+            }
+        }
+    }
+
+    if (searchInput) {
+        searchInput.addEventListener("input", filterSalesTable);
+    }
+
+    if (clearBtn) {
+        clearBtn.addEventListener("click", function () {
+            searchInput.value = "";
+            filterSalesTable();
+            searchInput.focus();
+        });
+    }
+
     socket.onmessage = function (event) {
         const payload = JSON.parse(event.data);
         const relevantEvents = ["stock_in_created", "stock_out_created", "sale_created", "sale_committed", "sale_refunded", "history_update"];
@@ -232,18 +303,57 @@ document.addEventListener("DOMContentLoaded", function () {
             .then(data => {
                 const fmt = num => Number(num).toFixed(2);
 
+                // Update Stock In Table if updated array is provided
+                if (data.stock_in_history && document.getElementById("stock-in-tbody")) {
+                    const stockInTbody = document.getElementById("stock-in-tbody");
+                    if (data.stock_in_history.length === 0) {
+                        stockInTbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No Stock In records found.</td></tr>';
+                    } else {
+                        stockInTbody.innerHTML = data.stock_in_history.map(item => `
+                            <tr>
+                                <td>${escapeHtml(item.created_at)}</td>
+                                <td><code>${escapeHtml(item.product_code || 'N/A')}</code></td>
+                                <td>${escapeHtml(item.product_name)}</td>
+                                <td><span class="badge bg-success fs-6">+${item.quantity}</span></td>
+                                <td>${escapeHtml(item.created_by || 'System')}</td>
+                            </tr>
+                        `).join('');
+                    }
+                }
+
+                // Update Stock Out Table if updated array is provided
+                if (data.stock_out_history && document.getElementById("stock-out-tbody")) {
+                    const stockOutTbody = document.getElementById("stock-out-tbody");
+                    if (data.stock_out_history.length === 0) {
+                        stockOutTbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No Stock Out records found.</td></tr>';
+                    } else {
+                        stockOutTbody.innerHTML = data.stock_out_history.map(item => `
+                            <tr>
+                                <td>${escapeHtml(item.created_at)}</td>
+                                <td><code>${escapeHtml(item.product_code || 'N/A')}</code></td>
+                                <td>${escapeHtml(item.product_name)}</td>
+                                <td><span class="badge bg-warning text-dark fs-6">-${item.quantity}</span></td>
+                                <td>${escapeHtml(item.created_by || 'System')}</td>
+                            </tr>
+                        `).join('');
+                    }
+                }
+
+                // Update Sales History Table
                 const salesTbody = document.getElementById("sales-history-tbody");
                 if (data.sales_history && salesTbody) {
                     if (data.sales_history.length === 0) {
-                        salesTbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted py-4">No sales records found.</td></tr>';
+                        salesTbody.innerHTML = '<tr id="no-sales-row"><td colspan="10" class="text-center text-muted py-4">No sales records found.</td></tr>';
                     } else {
                         salesTbody.innerHTML = data.sales_history.map(sale => {
                             const trClass = sale.is_refunded ? 'class="table-danger text-muted"' : '';
-                            
+                            const custNameAttr = escapeHtml((sale.customer_name || 'Walk-in Customer').toLowerCase());
+                            const receiptAttr = escapeHtml((sale.receipt_number || '').toLowerCase());
+
                             const itemsListHTML = sale.items.length > 0
                                 ? sale.items.map(i => `
                                     <li>
-                                        <strong>${i.product_name}</strong> 
+                                        <strong>${escapeHtml(i.product_name)}</strong> 
                                         <span class="badge bg-secondary">x${i.quantity}</span>
                                         @ UGX ${fmt(i.unit_price)}
                                     </li>
@@ -263,7 +373,7 @@ document.addEventListener("DOMContentLoaded", function () {
                             let statusBadge = '';
                             if (sale.is_refunded) {
                                 statusBadge = '<span class="badge bg-danger">REFUNDED</span>';
-                            } else if (sale.payment_status === 'COMPLETED' || sale.balance_due === 0) {
+                            } else if (sale.payment_status === 'COMPLETED' || sale.balance_due == 0) {
                                 statusBadge = '<span class="badge bg-success">COMPLETED</span>';
                             } else {
                                 statusBadge = '<span class="badge bg-warning text-dark">PENDING</span>';
@@ -274,7 +384,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
                             const refundHTML = !sale.is_refunded
                                 ? `
-                                    <form action="${refundUrl}" method="POST" onsubmit="return confirm('Are you sure you want to refund receipt ${sale.receipt_number}?');" class="m-0">
+                                    <form action="${refundUrl}" method="POST" onsubmit="return confirm('Are you sure you want to refund receipt ${escapeHtml(sale.receipt_number)}?');" class="m-0">
                                         <input type="hidden" name="csrfmiddlewaretoken" value="${csrfToken}">
                                         <button type="submit" class="btn btn-sm btn-outline-danger">Refund</button>
                                     </form>
@@ -282,16 +392,16 @@ document.addEventListener("DOMContentLoaded", function () {
                                 : '<span class="badge bg-secondary">Refunded</span>';
 
                             return `
-                                <tr ${trClass}>
-                                    <td>${sale.created_at}</td>
-                                    <td><code>${sale.receipt_number}</code></td>
-                                    <td>${sale.customer_name}</td>
+                                <tr ${trClass} data-customer="${custNameAttr}" data-receipt="${receiptAttr}">
+                                    <td>${escapeHtml(sale.created_at)}</td>
+                                    <td><code>${escapeHtml(sale.receipt_number)}</code></td>
+                                    <td class="customer-cell">${escapeHtml(sale.customer_name || 'Walk-in Customer')}</td>
                                     <td><ul class="list-unstyled mb-0 small">${itemsListHTML}</ul></td>
                                     <td class="fw-bold">${totalAmountHTML}</td>
                                     <td class="text-success">${amountPaidHTML}</td>
                                     <td class="${balanceClass}">UGX ${fmt(sale.balance_due)}</td>
                                     <td>${statusBadge}</td>
-                                    <td>${sale.cashier}</td>
+                                    <td>${escapeHtml(sale.cashier)}</td>
                                     <td>
                                         <div class="d-flex align-items-center gap-1">
                                             <a href="${printUrl}" target="_blank" class="btn btn-sm btn-outline-primary" title="Print Receipt">
@@ -304,6 +414,9 @@ document.addEventListener("DOMContentLoaded", function () {
                             `;
                         }).join('');
                     }
+
+                    // Re-apply existing search query to newly loaded rows
+                    filterSalesTable();
                 }
             })
             .catch(err => console.error("Error updating transaction history stats:", err));

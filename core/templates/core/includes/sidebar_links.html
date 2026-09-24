@@ -8,7 +8,7 @@
     <a href="{% url 'shop_pos' %}" class="{% if request.resolver_match.url_name == 'shop_pos' %}active{% endif %}">🛒 Shop POS</a>
 {% endif %}
 
-<a href="{% url 'history' %}" class="{% if request.resolver_match.url_name == 'history' %}active{% endif %}">🧾 Sales History</a>
+<a href="{% url 'history' %}" class="{% if request.resolver_match.url_name == 'history' %}active{% endif %}">🧾 History</a>
 
 {% if user.is_superuser or user.role == 'admin' or user.role == 'ADMIN' %}
     <a href="{% url 'settings' %}" class="{% if request.resolver_match.url_name == 'settings' %}active{% endif %}">⚙️ Settings</a>

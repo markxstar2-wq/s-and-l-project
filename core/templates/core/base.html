@@ -3,35 +3,71 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- CSRF Token Meta for Global Frontend Requests -->
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    
     <title>{% block title %}Byc System{% endblock %}</title>
+
+    <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
     <style>
-        body { background-color: #f4f6f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        .sidebar { min-height: 100vh; background-color: #1e293b; color: #fff; }
-        .sidebar a, .offcanvas-body a { color: #94a3b8; text-decoration: none; padding: 12px 20px; display: block; border-radius: 6px; margin-bottom: 4px; }
-        .sidebar a:hover, .sidebar a.active, .offcanvas-body a:hover, .offcanvas-body a.active { background-color: #334155; color: #fff; }
-        .card-kpi { border: none; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        body { 
+            background-color: #f4f6f9; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+        }
+        .sidebar { 
+            min-height: 100vh; 
+            background-color: #1e293b; 
+            color: #fff; 
+        }
+        .sidebar a, .offcanvas-body a { 
+            color: #94a3b8; 
+            text-decoration: none; 
+            padding: 12px 20px; 
+            display: block; 
+            border-radius: 6px; 
+            margin-bottom: 4px; 
+            transition: background-color 0.2s, color 0.2s;
+        }
+        .sidebar a:hover, .sidebar a.active, 
+        .offcanvas-body a:hover, .offcanvas-body a.active { 
+            background-color: #334155; 
+            color: #fff; 
+        }
+        .card-kpi { 
+            border: none; 
+            border-radius: 10px; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05); 
+        }
+        .notif-items-wrapper {
+            max-height: 320px;
+            overflow-y: auto;
+        }
     </style>
+    {% block extra_head %}{% endblock %}
 </head>
 <body>
 
     <!-- Mobile Top Navigation Bar -->
     <nav class="navbar navbar-dark bg-dark d-md-none px-3">
-        <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileSidebar" aria-controls="mobileSidebar">
+        <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileSidebar" aria-controls="mobileSidebar" aria-label="Toggle Navigation">
             <span class="navbar-toggler-icon"></span>
         </button>
         <span class="navbar-brand mb-0 h1 fs-6">{% block brand_mobile %}Byc System{% endblock %}</span>
 
         <!-- Mobile Notification Bell -->
         <div class="dropdown">
-            <button class="btn btn-outline-light btn-sm position-relative" type="button" id="mobileNotifDropdown" data-bs-toggle="dropdown">
+            <button class="btn btn-outline-light btn-sm position-relative notif-toggle-btn" type="button" id="mobileNotifDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                 🔔
                 <span class="notif-badge position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none">0</span>
             </button>
-            <ul class="dropdown-menu dropdown-menu-end shadow notif-list" style="width: 280px; max-height: 350px; overflow-y: auto;">
+            <ul class="dropdown-menu dropdown-menu-end shadow notif-dropdown-menu" style="width: 280px;">
                 <li class="dropdown-header">Notifications</li>
-                <li><hr class="dropdown-divider"></li>
-                <li class="empty-notif-msg dropdown-item text-muted text-center small">No new notifications</li>
+                <li><hr class="dropdown-divider my-1"></li>
+                <div class="notif-items-wrapper">
+                    <li class="empty-notif-msg dropdown-item text-muted text-center small py-3">No new notifications</li>
+                </div>
             </ul>
         </div>
     </nav>
@@ -56,14 +92,16 @@
                     
                     <!-- Desktop Notification Bell -->
                     <div class="dropdown">
-                        <button class="btn btn-outline-secondary btn-sm position-relative text-white border-0" type="button" id="desktopNotifDropdown" data-bs-toggle="dropdown">
+                        <button class="btn btn-outline-secondary btn-sm position-relative text-white border-0 notif-toggle-btn" type="button" id="desktopNotifDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                             🔔
                             <span class="notif-badge position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none">0</span>
                         </button>
-                        <ul class="dropdown-menu dropdown-menu-end shadow notif-list" style="width: 300px; max-height: 400px; overflow-y: auto;">
+                        <ul class="dropdown-menu dropdown-menu-end shadow notif-dropdown-menu" style="width: 300px;">
                             <li class="dropdown-header">Notifications</li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li class="empty-notif-msg dropdown-item text-muted text-center small">No new notifications</li>
+                            <li><hr class="dropdown-divider my-1"></li>
+                            <div class="notif-items-wrapper">
+                                <li class="empty-notif-msg dropdown-item text-muted text-center small py-3">No new notifications</li>
+                            </div>
                         </ul>
                     </div>
                 </div>
@@ -73,11 +111,12 @@
 
             <!-- Main Content Area -->
             <main class="col-md-10 ms-sm-auto px-md-4 py-4">
+                <!-- Django Messages Framework -->
                 {% if messages %}
                     {% for message in messages %}
-                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                        <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert">
                             {{ message }}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                         </div>
                     {% endfor %}
                 {% endif %}
@@ -90,6 +129,7 @@
     <!-- Floating Toast Container -->
     <div id="toast-container" class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1100;"></div>
 
+    <!-- Bootstrap 5 Bundle JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
     <!-- Unified Real-time WebSocket Client -->
@@ -99,38 +139,97 @@
         const wsUrl = wsProtocol + window.location.host + "/ws/live-updates/";
         let unreadCount = 0;
         let socket = null;
+        let reconnectDelay = 1000; // Exponential backoff initial delay
+
+        // Play audio chime using Web Audio API
+        function playNotificationChime() {
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContext) return;
+                const ctx = new AudioContext();
+
+                // Resume context if browser suspended it (autoplay policy)
+                if (ctx.state === 'suspended') {
+                    ctx.resume();
+                }
+
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+                osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15); // A5
+
+                gain.gain.setValueAtTime(0.1, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+
+                osc.start();
+                osc.stop(ctx.currentTime + 0.3);
+            } catch (e) {
+                console.warn("Audio Context blocked or unsupported", e);
+            }
+        }
 
         function connectWebSocket() {
             socket = new WebSocket(wsUrl);
 
             socket.onopen = function() {
                 console.log('⚡ Connected to Live System WebSockets');
+                reconnectDelay = 1000; // Reset reconnect delay on successful connection
             };
 
             socket.onmessage = function (event) {
-                const data = JSON.parse(event.data);
+                try {
+                    const data = JSON.parse(event.data);
 
-                if (data.type === "notification") {
-                    const notif = data.data || data;
-                    showToastNotification(notif.title || "Notification", notif.message, notif.level);
-                    addNotificationToBell(notif.title || "Notification", notif.message, notif.level);
-                }
+                    // Generic Notifications
+                    if (data.type === "notification") {
+                        const notif = data.data || data;
+                        showToastNotification(notif.title || "Notification", notif.message, notif.level || 'info');
+                        addNotificationToBell(notif.title || "Notification", notif.message, notif.level || 'info');
+                        playNotificationChime();
+                    }
 
-                if (data.type === 'dashboard_update' && window.location.pathname.includes('/dashboard')) {
-                    if (typeof refreshDashboardData === 'function') refreshDashboardData(data.data);
-                }
+                    // Main Store Stock Out / Transfer Broadcast
+                    if (data.type === "stock_out_notification" || data.type === "stock_out_broadcast") {
+                        const payload = data.data || data;
+                        const title = "🚚 Stock Transfer";
+                        const message = `${payload.quantity}x ${payload.product_name} transferred to ${payload.destination || 'Shop'} by ${payload.released_by || 'User'}`;
+                        
+                        showToastNotification(title, message, 'success');
+                        addNotificationToBell(title, message, 'success');
+                        playNotificationChime();
+                    }
 
-                if ((data.type === 'history_update' || data.type === 'sale_created') && window.location.pathname.includes('/history')) {
-                    if (typeof refreshHistoryData === 'function') refreshHistoryData();
-                }
+                    // Page Specific Auto-refreshes
+                    if (data.type === 'dashboard_update' && window.location.pathname.includes('/dashboard')) {
+                        if (typeof refreshDashboardData === 'function') refreshDashboardData(data.data);
+                    }
 
-                if (data.type === 'reports_update' && window.location.pathname.includes('/reports')) {
-                    if (typeof refreshReports === 'function') refreshReports(data.data);
+                    if ((data.type === 'history_update' || data.type === 'sale_created') && window.location.pathname.includes('/history')) {
+                        if (typeof refreshHistoryData === 'function') refreshHistoryData();
+                    }
+
+                    if (data.type === 'reports_update' && window.location.pathname.includes('/reports')) {
+                        if (typeof refreshReports === 'function') refreshReports(data.data);
+                    }
+                } catch (err) {
+                    console.error("Error processing WebSocket message:", err);
                 }
             };
 
             socket.onclose = function() {
-                setTimeout(connectWebSocket, 3000);
+                console.warn(`WebSocket closed. Reconnecting in ${reconnectDelay / 1000}s...`);
+                setTimeout(connectWebSocket, reconnectDelay);
+                reconnectDelay = Math.min(reconnectDelay * 2, 30000); // Max delay 30 seconds
+            };
+
+            socket.onerror = function(err) {
+                console.error("WebSocket error observed:", err);
+                socket.close();
             };
         }
 
@@ -150,7 +249,7 @@
                             <strong>${title}</strong><br>
                             <small>${message}</small>
                         </div>
-                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
                     </div>
                 </div>
             `;
@@ -166,7 +265,7 @@
 
         function addNotificationToBell(title, message, level) {
             const badges = document.querySelectorAll(".notif-badge");
-            const lists = document.querySelectorAll(".notif-list");
+            const itemContainers = document.querySelectorAll(".notif-items-wrapper");
             const emptyMsgs = document.querySelectorAll(".empty-notif-msg");
 
             emptyMsgs.forEach(msg => msg.remove());
@@ -177,18 +276,20 @@
                 badge.classList.remove("d-none");
             });
 
+            const levelColor = level === 'dark' ? 'primary' : level;
             const itemHTML = `
                 <li>
                     <a class="dropdown-item py-2 border-bottom" href="#">
-                        <div class="fw-bold small text-${level}">${title}</div>
+                        <div class="fw-bold small text-${levelColor}">${title}</div>
                         <div class="text-wrap text-muted extra-small" style="font-size: 0.8rem;">${message}</div>
                     </a>
                 </li>
             `;
-            lists.forEach(list => list.insertAdjacentHTML("afterbegin", itemHTML));
+
+            itemContainers.forEach(container => container.insertAdjacentHTML("afterbegin", itemHTML));
         }
 
-        document.querySelectorAll("#desktopNotifDropdown, #mobileNotifDropdown").forEach(btn => {
+        document.querySelectorAll(".notif-toggle-btn").forEach(btn => {
             btn.addEventListener("click", function () {
                 unreadCount = 0;
                 document.querySelectorAll(".notif-badge").forEach(badge => badge.classList.add("d-none"));

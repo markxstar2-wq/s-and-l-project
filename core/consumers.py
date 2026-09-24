@@ -3,8 +3,15 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 
 class LiveUpdateConsumer(AsyncWebsocketConsumer):
     async def connect(self):
-        # Channel groups to subscribe to
-        self.groups_to_join = ['dashboard', 'history', 'reports', 'notifications', 'live_updates']
+        # Join all channel groups including stock_notifications
+        self.groups_to_join = [
+            'dashboard', 
+            'history', 
+            'reports', 
+            'notifications', 
+            'live_updates', 
+            'stock_notifications'
+        ]
 
         for group in self.groups_to_join:
             await self.channel_layer.group_add(group, self.channel_name)
@@ -49,4 +56,15 @@ class LiveUpdateConsumer(AsyncWebsocketConsumer):
         await self.send(text_data=json.dumps({
             'type': 'notification',
             'data': event.get('notification', {})
+        }))
+
+    # Handler for 'type': 'stock_out_notification'
+    async def stock_out_notification(self, event):
+        await self.send(text_data=json.dumps({
+            "type": "stock_out_notification",
+            "quantity": event.get("quantity"),
+            "product_name": event.get("product_name"),
+            "released_by": event.get("released_by"),
+            "destination": event.get("destination"),
+            "timestamp": event.get("timestamp")
         }))

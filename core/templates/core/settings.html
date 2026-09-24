@@ -20,11 +20,6 @@
             👥 User Management
         </button>
     </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link fw-bold" id="notifications-tab" data-bs-toggle="tab" data-bs-target="#notifications" type="button" role="tab" aria-controls="notifications" aria-selected="false">
-            🔔 Stock Alerts & Notifications
-        </button>
-    </li>
 </ul>
 
 <div class="tab-content" id="settingsTabContent">
@@ -194,8 +189,8 @@
                                     </td>
                                     {% if request.user.is_superuser or request.user.role == 'admin' %}
                                     <td class="text-end">
-                                        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#userRoleModal{{ user_item.id }}">
-                                            ⚙️ Edit Role
+                                        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editUserModal{{ user_item.id }}">
+                                            ✏️ Edit
                                         </button>
                                     </td>
                                     {% endif %}
@@ -211,45 +206,6 @@
                 </div>
             </div>
 
-        </div>
-    </div>
-
-    <!-- ========================================== -->
-    <!-- TAB 3: NOTIFICATIONS & ALERT RULES        -->
-    <!-- ========================================== -->
-    <div class="tab-pane fade" id="notifications" role="tabpanel" aria-labelledby="notifications-tab">
-        <div class="card border-0 shadow-sm p-4 bg-white">
-            <h5 class="mb-3">Notification Routing & Stock Alerts</h5>
-            <form method="post" action="{% url 'save_notification_settings' %}">
-                {% csrf_token %}
-                <div class="mb-4">
-                    <div class="form-check form-switch mb-3">
-                        <input class="form-check-input" type="checkbox" id="notify_shop_on_main_stockout" name="notify_shop_on_main_stockout" checked>
-                        <label class="form-check-label fw-bold" for="notify_shop_on_main_stockout">
-                            Notify Shop Cashiers when a product is OUT OF STOCK in Main Store
-                        </label>
-                        <div class="form-text">Alerts cashiers so they don't promise customers items that cannot be replenished from the warehouse.</div>
-                    </div>
-
-                    <div class="form-check form-switch mb-3">
-                        <input class="form-check-input" type="checkbox" id="notify_main_on_shop_low" name="notify_main_on_shop_low" checked>
-                        <label class="form-check-label fw-bold" for="notify_main_on_shop_low">
-                            Notify Main Store Manager when Shop inventory runs low
-                        </label>
-                        <div class="form-text">Triggers a restock request notification to the Main Store manager to prepare items for transfer.</div>
-                    </div>
-
-                    <div class="form-check form-switch mb-3">
-                        <input class="form-check-input" type="checkbox" id="enable_overdue_debt_alerts" name="enable_overdue_debt_alerts" checked>
-                        <label class="form-check-label fw-bold" for="enable_overdue_debt_alerts">
-                            Show Overdue Customer Debt Banners on Dashboard
-                        </label>
-                        <div class="form-text">Displays prominent alert banners whenever customer credit payments pass their due dates.</div>
-                    </div>
-                </div>
-
-                <button type="submit" class="btn btn-primary fw-bold">💾 Save Notification Preferences</button>
-            </form>
         </div>
     </div>
 
@@ -298,5 +254,56 @@
     </div>
 </div>
 {% endfor %}
+
+<!-- ========================================== -->
+<!-- MODALS FOR EDITING USERS                   -->
+<!-- ========================================== -->
+{% if request.user.is_superuser or request.user.role == 'admin' %}
+{% for user_item in site_users %}
+<div class="modal fade" id="editUserModal{{ user_item.id }}" tabindex="-1" aria-labelledby="editUserModalLabel{{ user_item.id }}" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editUserModalLabel{{ user_item.id }}">Edit User Account: {{ user_item.username }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{% url 'edit_user' user_item.id %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="edit_username_{{ user_item.id }}" class="form-label fw-bold">Username</label>
+                        <input type="text" class="form-control" id="edit_username_{{ user_item.id }}" name="username" value="{{ user_item.username }}" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="edit_email_{{ user_item.id }}" class="form-label fw-bold">Email Address</label>
+                        <input type="email" class="form-control" id="edit_email_{{ user_item.id }}" name="email" value="{{ user_item.email|default:'' }}">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="edit_role_{{ user_item.id }}" class="form-label fw-bold">System Role</label>
+                        <select id="edit_role_{{ user_item.id }}" name="role" class="form-select" required>
+                            <option value="shop" {% if user_item.role == 'shop' %}selected{% endif %}>Shop Cashier (POS & Sales Access)</option>
+                            <option value="main_store" {% if user_item.role == 'main_store' %}selected{% endif %}>Main Store Manager (Warehouse Control)</option>
+                            <option value="admin" {% if user_item.role == 'admin' or user_item.is_superuser %}selected{% endif %}>System Administrator (Full Control)</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="edit_password_{{ user_item.id }}" class="form-label fw-bold">New Password</label>
+                        <input type="password" class="form-control" id="edit_password_{{ user_item.id }}" name="password" placeholder="Leave blank to keep current password">
+                        <div class="form-text">Only type a new password if you want to reset this user's password.</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary fw-bold">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endif %}
 
 {% endblock %}

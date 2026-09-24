@@ -114,6 +114,24 @@ def main_store_view(request):
                     stock_out.created_by = request.user
                     stock_out.save()
 
+                    # Define the WebSocket broadcast function
+                    def send_broadcast():
+                        channel_layer = get_channel_layer()
+                        async_to_sync(channel_layer.group_send)(
+                            "stock_notifications",
+                            {
+                                "type": "stock_out_notification",
+                                "product_name": product.product_name,
+                                "quantity": stock_out.quantity,
+                                "released_by": request.user.username,
+                                "destination": "Shop",
+                                "timestamp": timezone.now().strftime("%H:%M:%S")
+                            }
+                        )
+
+                    # Trigger broadcast after transaction commits successfully
+                    transaction.on_commit(send_broadcast)
+
                 messages.success(request, f"Transfer recorded: -{stock_out.quantity} units of {product.product_name} transferred to Shop.")
                 return redirect('main_store')
             except ValidationError as e:
@@ -126,8 +144,6 @@ def main_store_view(request):
         'stock_in_form': stock_in_form,
         'stock_out_form': stock_out_form,
     })
-
-
 # ------------------------------------------------------------------
 # 3. SHOP POS VIEW (Cashier)
 # ------------------------------------------------------------------
@@ -199,16 +215,10 @@ def process_refund(request, sale_id):
             sale.is_refunded = True
             sale.refunded_at = timezone.now()
             sale.save()
+            # Setting is_refunded = True automatically adds item quantities back to product.shop_stock!
 
-            # Restore inventory back to shop stock
-            for item in sale.items.all():
-                product = item.product
-                product.shop_stock += item.quantity
-                product.save()
-        
         messages.success(request, f"Sale #{sale.receipt_number} refunded successfully. Items restored to Shop Stock.")
     return redirect('history')
-
 
 @login_required
 def record_payment_view(request, sale_id):
@@ -825,3 +835,23 @@ def view_receipt(request, sale_id):
         'sale': sale,
         'settings': settings,
     })
+
+@login_required
+def edit_user(request, user_id):
+    if not (request.user.is_superuser or getattr(request.user, 'role', '') == 'admin'):
+        messages.error(request, "Permission denied.")
+        return redirect('settings')
+        
+    user_obj = get_object_or_404(User, id=user_id)
+    if request.method == 'POST':
+        user_obj.username = request.POST.get('username')
+        user_obj.email = request.POST.get('email')
+        user_obj.role = request.POST.get('role')
+        
+        new_password = request.POST.get('password')
+        if new_password and new_password.strip():
+            user_obj.set_password(new_password)
+            
+        user_obj.save()
+        messages.success(request, f"User {user_obj.username} updated successfully.")
+    return redirect('settings')

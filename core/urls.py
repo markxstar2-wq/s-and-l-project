@@ -27,6 +27,7 @@ urlpatterns = [
     path('settings/update-user-role/<int:user_id>/', views.update_user_role, name='update_user_role'),
     path('settings/save-notifications/', views.save_notification_settings, name='save_notification_settings'),
     path('settings/save-general/', views.save_general_settings, name='save_general_settings'),
+    path('settings/user/edit/<int:user_id>/', views.edit_user, name='edit_user'),
     path('api/dashboard-stats/', views.dashboard_stats_api, name='dashboard_stats_api'),
     path('api/reports-stats/', views.reports_stats_api, name='reports_stats_api'),
     path('api/history-stats/', views.history_stats_api, name='history_stats_api'),

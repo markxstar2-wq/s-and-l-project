@@ -39,7 +39,7 @@
 </style>
 
 <!-- Action Bar (Screen Only) -->
-<div class="d-flex justify-content-between align-items-center mb-4 max-width-400 mx-auto no-print" style="max-width: 400px;">
+<div class="d-flex justify-content-between align-items-center mb-4 mx-auto no-print" style="max-width: 400px;">
     <a href="{% url 'sales_history' %}" class="btn btn-outline-secondary btn-sm">
         ← Back to Sales History
     </a>
@@ -51,9 +51,9 @@
 <!-- Receipt Container -->
 <div class="card shadow-sm p-4 receipt-card" id="printableReceipt">
     
-    <!-- Business Header (From Tab 4 General Settings) -->
+    <!-- Business Header -->
     <div class="text-center mb-3">
-        <h4 class="fw-bold mb-1">{{ settings.shop_name|default:"My Retail Store" }}</h4>
+        <h4 class="fw-bold mb-1">{{ settings.shop_name|default:"BYC" }}</h4>
         {% if settings.shop_address %}
             <p class="mb-0 text-muted small">{{ settings.shop_address }}</p>
         {% endif %}
@@ -63,7 +63,6 @@
     </div>
 
     <div class="border-top border-bottom py-2 my-2 small">
-        <!-- Generated Receipt Number (From Sales History) -->
         <div class="d-flex justify-content-between">
             <span class="fw-bold">Receipt No:</span>
             <span>#{{ sale.receipt_number|default:sale.id }}</span>
@@ -76,22 +75,28 @@
             <span class="fw-bold">Cashier:</span>
             <span>{{ sale.served_by.username|default:request.user.username }}</span>
         </div>
-        {% if sale.customer_name %}
+        
+        <!-- Customer Details Section -->
         <div class="d-flex justify-content-between">
             <span class="fw-bold">Customer:</span>
-            <span>{{ sale.customer_name }}</span>
-        </div>
-        {% endif %}
-    </div>
+            <span>
+                {% if sale.customer %}
+                    {{ sale.customer.name }}
+                {% elif sale.customer_name_raw %}
+                    {{ sale.customer_name_raw }}
+                {% else %}
+                    Walk-in Customer
+                {% endif %}
+            </span>
 
+</div>
     <!-- Sold Items List -->
     <table class="table table-borderless table-sm small mb-2">
         <thead>
             <tr class="border-bottom">
                 <th>Item</th>
                 <th class="text-center">Qty</th>
-                <th class="text-end">Price</th>
-                <th class="text-end">Total</th>
+                <th class="text-end">Unit Price</th>
             </tr>
         </thead>
         <tbody>
@@ -99,8 +104,7 @@
             <tr>
                 <td>{{ item.product.product_name }}</td>
                 <td class="text-center">{{ item.quantity }}</td>
-                <td class="text-end">{{ item.unit_price }}</td>
-                <td class="text-end">{{ item.subtotal }}</td>
+                <td class="text-end">{{ item.unit_price_at_sale }}</td>
             </tr>
             {% empty %}
             <tr>
@@ -122,20 +126,16 @@
             <span>{{ sale.amount_paid }}</span>
         </div>
         <div class="d-flex justify-content-between text-muted">
-            <span>Change:</span>
-            <span>{{ sale.change_given|default:"0.00" }}</span>
-        </div>
+            <span>Remaining_debt:</span>
+            <span>{{ sale.balance_due }}</span>
         {% endif %}
-        <div class="d-flex justify-content-between text-muted">
-            <span>Payment Method:</span>
-            <span class="text-uppercase">{{ sale.payment_method|default:"Cash" }}</span>
-        </div>
+        
     </div>
 
-    <!-- Receipt Footer (From Tab 4 General Settings) -->
+    <!-- Receipt Footer -->
     <div class="text-center border-top mt-3 pt-2">
         <p class="small mb-0 text-muted">
-            {{ settings.receipt_footer|default:"Thank you for shopping with us! Goods once sold are not returnable." }}
+            {{ settings.receipt_footer|default:"Thank you for shopping with us. Contact us for any inquiries on 0708628549." }}
         </p>
     </div>
 
